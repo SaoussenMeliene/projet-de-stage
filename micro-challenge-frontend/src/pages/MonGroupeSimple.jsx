@@ -687,7 +687,7 @@ const MonGroupeSimple = () => {
     <div className="min-h-screen bg-gray-100">
       <HeaderDashboard />
       
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6 pt-8">
         <div className="mb-8">
           <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">

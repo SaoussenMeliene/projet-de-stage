@@ -68,9 +68,17 @@ const UserAvatar = ({
 
   // Si une image de profil est fournie, l'afficher
   if (profileImage) {
+    const imageUrl = profileImage.startsWith('http') ? profileImage : `http://localhost:5000${profileImage}`;
+    console.log("🖼️ Affichage de l'image de profil:", {
+      profileImage,
+      imageUrl,
+      name,
+      email
+    });
+
     return (
       <img
-        src={profileImage.startsWith('http') ? profileImage : `http://localhost:5000${profileImage}`}
+        src={imageUrl}
         alt={name || email}
         className={`
           ${sizeClass}
@@ -81,6 +89,13 @@ const UserAvatar = ({
           select-none
         `}
         title={name || email}
+        onError={(e) => {
+          console.error("❌ Erreur de chargement de l'image:", imageUrl);
+          e.target.style.display = 'none';
+        }}
+        onLoad={() => {
+          console.log("✅ Image chargée avec succès:", imageUrl);
+        }}
       />
     );
   }

@@ -5,7 +5,7 @@ const crypto = require("crypto");
 
 exports.register = async (req, res) => {
   try {
-    const { username, email, password, firstName, lastName, role } = req.body;
+    const { username, email, password, firstName, lastName, phone, bio, role } = req.body;
 
     // Vérifier champs obligatoires
     if (!username || !email || !password) {
@@ -37,6 +37,8 @@ exports.register = async (req, res) => {
       password: hashedPassword,
       firstName,
       lastName,
+      phone,
+      bio,
       profileImage: profileImagePath,
       role
     });
@@ -102,6 +104,8 @@ exports.login = async (req, res) => {
         role: user.role,
         firstName: user.firstName || null,
         lastName: user.lastName || null,
+        phone: user.phone || null,
+        bio: user.bio || null,
         profileImage: user.profileImage || null
       },
       message: `Connexion réussie en tant que ${user.role}`

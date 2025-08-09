@@ -110,12 +110,14 @@ const HeaderDashboard = () => {
           const userData = JSON.parse(storedUser);
           const displayName = userData.firstName && userData.lastName
             ? `${userData.firstName} ${userData.lastName}`
-            : userData.username || userData.email.split('@')[0];
+            : userData.username || (userData.email ? userData.email.split('@')[0] : 'Utilisateur');
 
           setUser({
             name: displayName,
             email: userData.email,
-            profileImage: userData.profileImage,
+            profileImage: userData.profileImage ?
+              (userData.profileImage.startsWith('http') ? userData.profileImage : `http://localhost:5000${userData.profileImage}`) :
+              null,
             role: userData.role === 'admin' ? 'Administrateur' : 'Collaborateur',
             points: 1250, // Valeur par défaut
             level: userData.role === 'admin' ? 'Admin' : 'Expert'
@@ -123,29 +125,38 @@ const HeaderDashboard = () => {
           setUserRole(userData.role);
 
           // Ensuite, essayer de récupérer les données à jour du serveur
-          const response = await fetch("http://localhost:5000/api/users/me", {
-            headers: {
-              "Authorization": `Bearer ${token}`,
-              "Content-Type": "application/json"
-            }
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            const serverUser = data.user;
-            const serverDisplayName = serverUser.firstName && serverUser.lastName
-              ? `${serverUser.firstName} ${serverUser.lastName}`
-              : serverUser.username || serverUser.email.split('@')[0];
-
-            setUser({
-              name: serverDisplayName,
-              email: serverUser.email,
-              profileImage: serverUser.profileImage,
-              role: serverUser.role === 'admin' ? 'Administrateur' : 'Collaborateur',
-              points: 1250,
-              level: serverUser.role === 'admin' ? 'Admin' : 'Expert'
+          try {
+            const response = await fetch("http://localhost:5000/api/users/me", {
+              headers: {
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json"
+              }
             });
-            setUserRole(serverUser.role);
+
+            if (response.ok) {
+              const data = await response.json();
+              const serverUser = data.user;
+              const serverDisplayName = serverUser.firstName && serverUser.lastName
+                ? `${serverUser.firstName} ${serverUser.lastName}`
+                : serverUser.username || (serverUser.email ? serverUser.email.split('@')[0] : 'Utilisateur');
+
+              setUser({
+                name: serverDisplayName,
+                email: serverUser.email,
+                profileImage: serverUser.profileImage ?
+                  (serverUser.profileImage.startsWith('http') ? serverUser.profileImage : `http://localhost:5000${serverUser.profileImage}`) :
+                  null,
+                role: serverUser.role === 'admin' ? 'Administrateur' : 'Collaborateur',
+                points: 1250,
+                level: serverUser.role === 'admin' ? 'Admin' : 'Expert'
+              });
+              setUserRole(serverUser.role);
+            } else {
+              console.log('Erreur API:', response.status, response.statusText);
+            }
+          } catch (error) {
+            console.log('Erreur réseau lors de la récupération du profil:', error);
+            // On garde les données du localStorage en cas d'erreur
           }
         }
       } catch (error) {
@@ -167,6 +178,7 @@ const HeaderDashboard = () => {
     // Nettoyer le stockage local
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("lastTokenUsed");
     localStorage.removeItem("rememberMe");
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("user");
@@ -178,9 +190,9 @@ const HeaderDashboard = () => {
   };
 
   return (
-    <header className="w-full shadow-sm bg-white px-8 py-4 sticky top-0 z-50 transition-all duration-300">
+    <header className="w-full shadow-sm bg-white px-8 py-6 sticky top-0 z-50 transition-all duration-300">
       {/* Ligne 1 : Logo + Recherche + Icônes */}
-      <div className="flex justify-between items-center w-full max-w-7xl mx-auto mb-4 relative">
+      <div className="flex justify-between items-center w-full max-w-7xl mx-auto mb-6 relative">
         {/* Logo */}
         <div className="flex items-center gap-2 flex-shrink-0 transition-all duration-300">
           <Logo
@@ -363,7 +375,7 @@ const HeaderDashboard = () => {
       </div>
 
       {/* Ligne 2 : Navigation */}
-     <nav className="flex justify-start gap-8 text-gray-600 mt-6 max-w-7xl mx-auto">
+     <nav className="flex justify-start gap-8 text-gray-600 mt-8 max-w-7xl mx-auto">
   {[
     { icon: Home, label: "Accueil", path: "/accueil", color: "blue" },
     { icon: Target, label: "Mes Défis", path: "/mes-defis", color: "green" },

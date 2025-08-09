@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const userCtrl = require("../Controllers/user.controller");
 const verifyToken = require("../Middleware/auth");
+const { handleProfileImageUpload } = require("../Middleware/upload");
 const User = require("../Models/User");
 
 // Route existante
@@ -29,5 +30,37 @@ router.get("/profile", verifyToken, userCtrl.getUserProfile);
 
 // PUT: Mettre à jour le profil utilisateur
 router.put("/profile", verifyToken, userCtrl.updateUserProfile);
+
+// PUT: Mettre à jour l'image de profil
+router.put("/profile-image", verifyToken, handleProfileImageUpload, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    if (!req.file) {
+      return res.status(400).json({ msg: "Aucune image fournie" });
+    }
+
+    // Construire le chemin de l'image
+    const profileImagePath = `/uploads/profiles/${req.file.filename}`;
+
+    // Mettre à jour l'utilisateur
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { profileImage: profileImagePath },
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    console.log("✅ Image de profil mise à jour:", profileImagePath);
+
+    res.status(200).json({
+      msg: "Image de profil mise à jour avec succès",
+      user: updatedUser,
+      profileImage: profileImagePath
+    });
+  } catch (error) {
+    console.error("Erreur updateProfileImage:", error);
+    res.status(500).json({ msg: "Erreur serveur", error: error.message });
+  }
+});
 
 module.exports = router;

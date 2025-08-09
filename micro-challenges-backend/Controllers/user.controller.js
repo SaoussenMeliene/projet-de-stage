@@ -67,30 +67,43 @@ exports.getUserProfile = async (req, res) => {
 // Mettre à jour le profil utilisateur
 exports.updateUserProfile = async (req, res) => {
   try {
-    const { username, email } = req.body;
+    const { username, email, firstName, lastName, phone, bio } = req.body;
     const userId = req.user.id;
+
+    console.log("📝 Mise à jour du profil pour:", userId);
+    console.log("📝 Données reçues:", { username, email, firstName, lastName, phone, bio });
 
     // Vérifier si l'email est déjà utilisé par un autre utilisateur
     if (email) {
-      const existingUser = await User.findOne({ 
-        email, 
-        _id: { $ne: userId } 
+      const existingUser = await User.findOne({
+        email,
+        _id: { $ne: userId }
       });
-      
+
       if (existingUser) {
         return res.status(400).json({ msg: "Cet email est déjà utilisé" });
       }
     }
 
+    const updateData = {};
+    if (username) updateData.username = username;
+    if (email) updateData.email = email;
+    if (firstName !== undefined) updateData.firstName = firstName;
+    if (lastName !== undefined) updateData.lastName = lastName;
+    if (phone !== undefined) updateData.phone = phone;
+    if (bio !== undefined) updateData.bio = bio;
+
+    console.log("📝 Données à mettre à jour:", updateData);
+
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { 
-        ...(username && { username }),
-        ...(email && { email })
-      },
+      updateData,
       { new: true, runValidators: true }
     ).select('-password');
 
+    console.log("✅ Profil mis à jour:", updatedUser);
+
+    // Mettre à jour aussi le localStorage côté client
     res.status(200).json({
       msg: "Profil mis à jour avec succès",
       user: updatedUser
