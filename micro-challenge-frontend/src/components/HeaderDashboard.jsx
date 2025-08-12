@@ -135,22 +135,28 @@ const HeaderDashboard = () => {
 
             if (response.ok) {
               const data = await response.json();
-              const serverUser = data.user;
-              const serverDisplayName = serverUser.firstName && serverUser.lastName
-                ? `${serverUser.firstName} ${serverUser.lastName}`
-                : serverUser.username || (serverUser.email ? serverUser.email.split('@')[0] : 'Utilisateur');
+              const serverUser = data.user || data; // Gérer les différents formats de réponse
 
-              setUser({
-                name: serverDisplayName,
-                email: serverUser.email,
-                profileImage: serverUser.profileImage ?
-                  (serverUser.profileImage.startsWith('http') ? serverUser.profileImage : `http://localhost:5000${serverUser.profileImage}`) :
-                  null,
-                role: serverUser.role === 'admin' ? 'Administrateur' : 'Collaborateur',
-                points: 1250,
-                level: serverUser.role === 'admin' ? 'Admin' : 'Expert'
-              });
-              setUserRole(serverUser.role);
+              // Vérifier que serverUser existe et n'est pas null
+              if (serverUser && typeof serverUser === 'object') {
+                const serverDisplayName = serverUser.firstName && serverUser.lastName
+                  ? `${serverUser.firstName} ${serverUser.lastName}`
+                  : serverUser.username || (serverUser.email ? serverUser.email.split('@')[0] : 'Utilisateur');
+
+                setUser({
+                  name: serverDisplayName,
+                  email: serverUser.email,
+                  profileImage: serverUser.profileImage ?
+                    (serverUser.profileImage.startsWith('http') ? serverUser.profileImage : `http://localhost:5000${serverUser.profileImage}`) :
+                    null,
+                  role: serverUser.role === 'admin' ? 'Administrateur' : 'Collaborateur',
+                  points: 1250,
+                  level: serverUser.role === 'admin' ? 'Admin' : 'Expert'
+                });
+                setUserRole(serverUser.role);
+              } else {
+                console.log('Données serveur invalides:', serverUser);
+              }
             } else {
               console.log('Erreur API:', response.status, response.statusText);
             }
@@ -173,6 +179,26 @@ const HeaderDashboard = () => {
       document.removeEventListener("click", handleClickOutside);
     };
   }, []);
+
+  // Écouter les changements de localStorage pour mettre à jour le rôle
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      if (storedUser.role && storedUser.role !== userRole) {
+        setUserRole(storedUser.role);
+      }
+    };
+
+    // Écouter les événements de changement de localStorage
+    window.addEventListener('storage', handleStorageChange);
+
+    // Vérifier immédiatement au montage
+    handleStorageChange();
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [userRole]);
 
   const handleLogout = () => {
     // Nettoyer le stockage local
@@ -358,6 +384,23 @@ const HeaderDashboard = () => {
                     <span className="font-medium">Paramètres</span>
                   </Link>
 
+                  {(() => {
+                    // Vérifier directement dans localStorage pour éviter les problèmes de timing
+                    const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+                    const isAdminFromStorage = storedUser.role === 'admin';
+                    const isAdminFromState = userRole === 'admin';
+
+                    return isAdminFromStorage || isAdminFromState;
+                  })() && (
+                    <Link
+                      to="/admin-dashboard"
+                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 transition-colors duration-200 text-red-700"
+                    >
+                      <Shield size={18} className="text-red-500" />
+                      <span className="font-medium">Administration</span>
+                    </Link>
+                  )}
+
                   <div className="border-t border-gray-100 my-2"></div>
 
                   <button
@@ -381,8 +424,7 @@ const HeaderDashboard = () => {
     { icon: Target, label: "Mes Défis", path: "/mes-defis", color: "green" },
     { icon: Calendar, label: "Calendrier", path: "/calendrier", color: "purple" },
     { icon: Users, label: "Mon Groupe", path: "/mon-groupe", color: "orange" },
-    { icon: Trophy, label: "Récompenses", path: "/recompenses", color: "yellow" },
-    ...(userRole === 'admin' ? [{ icon: Shield, label: "Admin", path: "/admin", color: "red" }] : [])
+    { icon: Trophy, label: "Récompenses", path: "/recompenses", color: "yellow" }
   ].map((item, index) => {
     const isActive = location.pathname === item.path;
     const colorClasses = {

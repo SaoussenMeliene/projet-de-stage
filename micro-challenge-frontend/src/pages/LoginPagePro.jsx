@@ -148,7 +148,7 @@ const LoginPagePro = () => {
   const getWelcomeMessage = (userRole, userName) => {
     switch (userRole) {
       case 'admin':
-        return `Bienvenue ${userName} ! Accès administrateur activé.`;
+        return `Bienvenue ${userName} ! Redirection vers le tableau de bord administrateur...`;
       case 'manager':
         return `Bienvenue ${userName} ! Accès manager activé.`;
       default:
@@ -160,7 +160,7 @@ const LoginPagePro = () => {
   const getRedirectPath = (userRole, from) => {
     switch (userRole) {
       case 'admin':
-        return from || '/admin';
+        return from || '/admin-dashboard'; // Redirection vers le nouveau tableau de bord admin
       case 'manager':
         return from || '/manager-dashboard';
       default:

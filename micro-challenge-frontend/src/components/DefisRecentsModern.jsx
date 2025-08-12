@@ -214,7 +214,7 @@ export default function DefisRecentsModern() {
               
               {/* Bouton d'action */}
               <button className={`w-full bg-gradient-to-r ${challenge.categoryGradient} hover:shadow-lg text-white font-semibold py-3 rounded-2xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2 group-hover:shadow-xl`}>
-                <span>Participer</span>
+                <span>Rejoindre</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
               </button>
             </div>
@@ -229,7 +229,8 @@ export default function DefisRecentsModern() {
 
       {/* Bouton Voir tous les défis modernisé */}
       <div className="flex justify-center mb-16">
-        <button className="group bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-white font-semibold px-8 py-4 rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-xl flex items-center gap-3">
+        <button 
+        onClick={() => navigate("/mes-defis")} className="group bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-white font-semibold px-8 py-4 rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-xl flex items-center gap-3">
           <span>Voir tous les défis</span>
           <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
         </button>
@@ -263,7 +264,8 @@ export default function DefisRecentsModern() {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <button className="group bg-white text-purple-600 font-bold px-8 py-4 rounded-2xl hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 hover:shadow-xl flex items-center gap-2">
+            <button   onClick={() => navigate("/mes-defis")}
+            className="group bg-white text-purple-600 font-bold px-8 py-4 rounded-2xl hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 hover:shadow-xl flex items-center gap-2">
               <span>Commencer maintenant</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
             </button>

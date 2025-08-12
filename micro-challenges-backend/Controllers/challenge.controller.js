@@ -1,4 +1,4 @@
-const Challenge = require("../models/Challenge");
+const Challenge = require("../Models/Challenge");
 const User = require("../Models/User");
 const Notification = require("../Models/Notification");
 

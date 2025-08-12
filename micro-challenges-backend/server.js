@@ -13,7 +13,7 @@ app.use(express.json());
 
 // Servir les fichiers statiques (images de profil)
 app.use('/uploads', express.static('uploads'));
-
+app.use('/api/users', require('./Routes/user.routes'));
 // Middleware de logging pour toutes les requêtes
 app.use((req, res, next) => {
   console.log(`📡 ${new Date().toLocaleTimeString()} - ${req.method} ${req.url}`);

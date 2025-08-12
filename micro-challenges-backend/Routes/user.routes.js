@@ -7,15 +7,24 @@ const User = require("../Models/User");
 
 // Route existante
 router.get("/me", verifyToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select("-password");
-    res.status(200).json({
-      msg: "Profil utilisateur complet récupéré",
-      user
-    });
-  } catch (err) {
-    res.status(500).json({ msg: "Erreur serveur", error: err.message });
-  }
+  const u = await User.findById(req.user.id).select("-password");
+  if (!u) return res.status(404).json({ msg: "Utilisateur introuvable" });
+
+  const profileImage = u.profileImage || null; // ex: "/uploads/profiles/xxx.jpg"
+
+  res.json({
+    user: {
+      id: u._id,
+      username: u.username,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      email: u.email,
+      role: u.role,
+      profileImage,           // <= important
+      createdAt: u.createdAt,
+      updatedAt: u.updatedAt,
+    }
+  });
 });
 
 // Nouvelles routes

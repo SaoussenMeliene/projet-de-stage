@@ -16,7 +16,7 @@ exports.register = async (req, res) => {
       return res.status(400).json({ msg: "Le mot de passe doit contenir au moins 6 caractères." });
     }
 
-    // Vérifie s’il existe déjà un utilisateur avec cet email
+    // Vérifie s'il existe déjà un utilisateur avec cet email
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ msg: "Email déjà utilisé." });
@@ -48,221 +48,257 @@ exports.register = async (req, res) => {
     res.status(201).json({ msg: "Utilisateur enregistré avec succès." });
   } catch (err) {
     console.error("Erreur register:", err);
-
-    // Gestion propre des erreurs de validation mongoose (regex email, etc.)
-    if (err.name === "ValidationError") {
-      const messages = Object.values(err.errors).map(e => e.message);
-      return res.status(400).json({ msg: messages.join(", ") });
-    }
-
-    res.status(500).json({ msg: "Erreur serveur", error: err.message });
+    res.status(500).json({ msg: "Erreur serveur." });
   }
 };
 
-
 exports.login = async (req, res) => {
   try {
-    console.log("🔐 Tentative de connexion reçue:", req.body);
-    const { email, password, expectedRole } = req.body;
+    const { email, password } = req.body;
 
-    console.log("🔍 Recherche utilisateur:", email);
+    console.log('🔐 Tentative de connexion:', { email, password: '***' });
+
+    if (!email || !password) {
+      console.log('❌ Champs manquants');
+      return res.status(400).json({ msg: "Email et mot de passe requis." });
+    }
+
     const user = await User.findOne({ email });
     if (!user) {
-      console.log("❌ Utilisateur non trouvé:", email);
-      return res.status(400).json({ msg: "Email incorrect." });
+      console.log('❌ Utilisateur non trouvé:', email);
+      return res.status(400).json({ msg: "Identifiants invalides." });
     }
-    console.log("✅ Utilisateur trouvé:", user.email, "- Role:", user.role);
 
-    console.log("🔑 Vérification du mot de passe...");
+    console.log('👤 Utilisateur trouvé:', {
+      id: user._id,
+      email: user.email,
+      role: user.role,
+      hasPassword: !!user.password
+    });
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      console.log("❌ Mot de passe incorrect pour:", email);
-      return res.status(400).json({ msg: "Mot de passe incorrect." });
+      console.log('❌ Mot de passe incorrect');
+      return res.status(400).json({ msg: "Identifiants invalides." });
     }
-    console.log("✅ Mot de passe correct pour:", email);
 
-    // Vérification de cohérence du rôle si fourni
-    if (expectedRole && user.role !== expectedRole) {
-      console.log(`Incohérence de rôle détectée: attendu ${expectedRole}, réel ${user.role}`);
-      // On continue quand même mais on log l'incohérence
-    }
+    console.log('✅ Mot de passe correct');
 
     const token = jwt.sign(
-      { id: user._id, role: user.role, email: user.email },
+      { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "24h" }
     );
 
-    // Réponse enrichie avec les données utilisateur
-    console.log("🎉 Connexion réussie pour:", email, "- Token généré");
-    res.status(200).json({
+    console.log('🎫 Token généré pour:', user.email);
+
+    res.json({
       token,
       user: {
         id: user._id,
         username: user.username,
         email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.phone,
+        bio: user.bio,
+        profileImage: user.profileImage,
         role: user.role,
-        firstName: user.firstName || null,
-        lastName: user.lastName || null,
-        phone: user.phone || null,
-        bio: user.bio || null,
-        profileImage: user.profileImage || null
-      },
-      message: `Connexion réussie en tant que ${user.role}`
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
+      }
     });
   } catch (err) {
     console.error("Erreur login:", err);
-    res.status(500).json({ msg: "Erreur serveur", error: err.message });
+    res.status(500).json({ msg: "Erreur serveur." });
   }
 };
 
-// Demande de réinitialisation de mot de passe
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
-    console.log("🔄 Demande de réinitialisation pour:", email);
+    if (!email) {
+      return res.status(400).json({ msg: "Email requis." });
+    }
 
     const user = await User.findOne({ email });
     if (!user) {
-      // Pour des raisons de sécurité, on renvoie toujours le même message
-      return res.status(200).json({
-        msg: "Si cet email existe, un lien de réinitialisation a été envoyé."
-      });
+      return res.status(404).json({ msg: "Aucun utilisateur trouvé avec cet email." });
     }
 
-    // Générer un token de réinitialisation
-    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetToken = crypto.randomBytes(32).toString("hex");
     const resetTokenExpiry = Date.now() + 3600000; // 1 heure
 
-    // Sauvegarder le token dans l'utilisateur
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpires = resetTokenExpiry;
     await user.save();
 
-    console.log("✅ Token de réinitialisation généré pour:", email);
-    console.log("🔑 Token:", resetToken);
+    console.log(`Token de réinitialisation généré pour ${email}: ${resetToken}`);
 
-    // En production, vous enverriez un email ici
-    // Pour le développement, on renvoie le token dans la réponse
-    res.status(200).json({
-      msg: "Si cet email existe, un lien de réinitialisation a été envoyé.",
-      // ATTENTION: En production, ne jamais renvoyer le token !
-      resetToken: resetToken, // Seulement pour le développement
+    res.json({
+      msg: "Token de réinitialisation généré avec succès.",
+      resetToken,
       resetUrl: `http://localhost:5173/reset-password?token=${resetToken}`
     });
-
   } catch (err) {
-    console.error("Erreur forgot password:", err);
-    res.status(500).json({ msg: "Erreur serveur", error: err.message });
+    console.error("Erreur forgotPassword:", err);
+    res.status(500).json({ msg: "Erreur serveur." });
   }
 };
 
-// Réinitialisation du mot de passe
 exports.resetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;
 
-    console.log("🔄 Tentative de réinitialisation avec token:", token);
+    if (!token || !newPassword) {
+      return res.status(400).json({ msg: "Token et nouveau mot de passe requis." });
+    }
 
-    // Trouver l'utilisateur avec le token valide
+    if (newPassword.length < 6) {
+      return res.status(400).json({ msg: "Le mot de passe doit contenir au moins 6 caractères." });
+    }
+
     const user = await User.findOne({
       resetPasswordToken: token,
       resetPasswordExpires: { $gt: Date.now() }
     });
 
     if (!user) {
-      return res.status(400).json({
-        msg: "Token invalide ou expiré."
-      });
+      return res.status(400).json({ msg: "Token invalide ou expiré." });
     }
 
-    // Hasher le nouveau mot de passe
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
-
-    // Mettre à jour le mot de passe et supprimer le token
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedPassword;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
     await user.save();
 
-    console.log("✅ Mot de passe réinitialisé pour:", user.email);
-
-    res.status(200).json({
-      msg: "Mot de passe réinitialisé avec succès."
-    });
-
+    res.json({ msg: "Mot de passe réinitialisé avec succès." });
   } catch (err) {
-    console.error("Erreur reset password:", err);
-    res.status(500).json({ msg: "Erreur serveur", error: err.message });
+    console.error("Erreur resetPassword:", err);
+    res.status(500).json({ msg: "Erreur serveur." });
   }
 };
 
-// Vérification de la disponibilité du nom d'utilisateur
+exports.getProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ msg: "Utilisateur non trouvé." });
+    }
+
+    res.json({ user });
+  } catch (err) {
+    console.error("Erreur getProfile:", err);
+    res.status(500).json({ msg: "Erreur serveur." });
+  }
+};
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const { firstName, lastName, phone, bio } = req.body;
+    const userId = req.user.userId;
+
+    let updateData = { firstName, lastName, phone, bio };
+
+    if (req.file) {
+      updateData.profileImage = `/uploads/profiles/${req.file.filename}`;
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      updateData,
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ msg: "Utilisateur non trouvé." });
+    }
+
+    res.json({
+      msg: "Profil mis à jour avec succès.",
+      user
+    });
+  } catch (err) {
+    console.error("Erreur updateProfile:", err);
+    res.status(500).json({ msg: "Erreur serveur." });
+  }
+};
+
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find().select('-password');
+    res.json({ users });
+  } catch (err) {
+    console.error("Erreur getAllUsers:", err);
+    res.status(500).json({ msg: "Erreur serveur." });
+  }
+};
+
+exports.deleteUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const user = await User.findByIdAndDelete(userId);
+    if (!user) {
+      return res.status(404).json({ msg: "Utilisateur non trouvé." });
+    }
+
+    res.json({ msg: "Utilisateur supprimé avec succès." });
+  } catch (err) {
+    console.error("Erreur deleteUser:", err);
+    res.status(500).json({ msg: "Erreur serveur." });
+  }
+};
+
+exports.updateUserRole = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { role } = req.body;
+
+    if (!['admin', 'collaborateur'].includes(role)) {
+      return res.status(400).json({ msg: "Rôle invalide." });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { role },
+      { new: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ msg: "Utilisateur non trouvé." });
+    }
+
+    res.json({
+      msg: "Rôle utilisateur mis à jour avec succès.",
+      user
+    });
+  } catch (err) {
+    console.error("Erreur updateUserRole:", err);
+    res.status(500).json({ msg: "Erreur serveur." });
+  }
+};
+
 exports.checkUsername = async (req, res) => {
   try {
     const { username } = req.params;
-
-    console.log("🔍 Vérification du nom d'utilisateur:", username);
-
-    if (!username || username.length < 3) {
-      return res.status(400).json({
-        msg: "Le nom d'utilisateur doit contenir au moins 3 caractères"
-      });
-    }
-
-    const existingUser = await User.findOne({ username });
-
-    if (existingUser) {
-      console.log("❌ Nom d'utilisateur déjà pris:", username);
-      return res.status(409).json({
-        msg: "Nom d'utilisateur déjà pris"
-      });
-    }
-
-    console.log("✅ Nom d'utilisateur disponible:", username);
-    res.status(200).json({
-      msg: "Nom d'utilisateur disponible"
-    });
-
+    const user = await User.findOne({ username });
+    res.json({ available: !user });
   } catch (err) {
-    console.error("Erreur check username:", err);
-    res.status(500).json({ msg: "Erreur serveur", error: err.message });
+    console.error("Erreur checkUsername:", err);
+    res.status(500).json({ msg: "Erreur serveur." });
   }
 };
 
-// Vérification de la disponibilité de l'email
 exports.checkEmail = async (req, res) => {
   try {
     const { email } = req.params;
-
-    console.log("🔍 Vérification de l'email:", email);
-
-    // Validation du format email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({
-        msg: "Format d'email invalide"
-      });
-    }
-
-    const existingUser = await User.findOne({ email });
-
-    if (existingUser) {
-      console.log("❌ Email déjà utilisé:", email);
-      return res.status(409).json({
-        msg: "Email déjà utilisé"
-      });
-    }
-
-    console.log("✅ Email disponible:", email);
-    res.status(200).json({
-      msg: "Email disponible"
-    });
-
+    const user = await User.findOne({ email });
+    res.json({ available: !user });
   } catch (err) {
-    console.error("Erreur check email:", err);
-    res.status(500).json({ msg: "Erreur serveur", error: err.message });
+    console.error("Erreur checkEmail:", err);
+    res.status(500).json({ msg: "Erreur serveur." });
   }
 };

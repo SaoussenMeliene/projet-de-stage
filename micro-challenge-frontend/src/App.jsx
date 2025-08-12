@@ -7,17 +7,21 @@ import AboutPage from "./pages/AboutPage";
 import ContactPage from "./pages/ContactPage";
 
 import '@fortawesome/fontawesome-free/css/all.min.css';
+import './utils/realLogin.js'; // Fonctions de connexion réelle
+
 import Accueil from "./pages/Accueil";
 import MesDefis from "./pages/MesDefis";
 import VoirDefi from "./pages/VoirDefi";
 import CalendrierModern from "./pages/CalendrierModern";
 import MonGroupeSimple from "./pages/MonGroupeSimple";
 import Recompenses from "./pages/Recompenses";
-import AdminDashboard from "./pages/AdminDashboard";
+import AdminDashboard from "./pages/AdminDashboardRedirect";
+import AdminDashboardNew from "./pages/AdminDashboardNew";
 import ProfilPage from "./pages/ProfilPage";
 import ParametresPage from "./pages/ParametresPage";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 
 
@@ -41,6 +45,11 @@ const App = () => {
         <Route path="/profil" element={<ProfilPage />} />
         <Route path="/parametres" element={<ParametresPage />} />
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin-dashboard" element={
+          <ErrorBoundary>
+            <AdminDashboardNew />
+          </ErrorBoundary>
+        } />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
        </Routes>
