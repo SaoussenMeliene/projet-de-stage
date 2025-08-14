@@ -114,6 +114,10 @@ exports.login = async (req, res) => {
   }
 };
 
+
+
+
+
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -284,8 +288,12 @@ exports.updateUserRole = async (req, res) => {
 exports.checkUsername = async (req, res) => {
   try {
     const { username } = req.params;
-    const user = await User.findOne({ username });
-    res.json({ available: !user });
+    if (!username || username.trim().length < 3) {
+      return res.status(400).json({ msg: "Username invalide." });
+    }
+    const exists = await User.findOne({ username });
+    if (exists) return res.status(409).json({ msg: "Nom d'utilisateur déjà pris" });
+    return res.json({ available: true });
   } catch (err) {
     console.error("Erreur checkUsername:", err);
     res.status(500).json({ msg: "Erreur serveur." });
@@ -295,10 +303,15 @@ exports.checkUsername = async (req, res) => {
 exports.checkEmail = async (req, res) => {
   try {
     const { email } = req.params;
-    const user = await User.findOne({ email });
-    res.json({ available: !user });
+    if (!email) return res.status(400).json({ msg: "Email invalide." });
+    const exists = await User.findOne({ email: (email || "").toLowerCase() });
+    if (exists) return res.status(409).json({ msg: "Email déjà utilisé" });
+    return res.json({ available: true });
   } catch (err) {
     console.error("Erreur checkEmail:", err);
     res.status(500).json({ msg: "Erreur serveur." });
   }
 };
+
+
+

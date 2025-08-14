@@ -4,7 +4,7 @@ const User = require("../Models/User");
 exports.searchUsers = async (req, res) => {
   try {
     const { q } = req.query;
-    const currentUserId = req.user.id;
+    const currentUserId = req.user.userId;
 
     if (!q || q.trim().length < 2) {
       return res.status(400).json({ msg: "La recherche doit contenir au moins 2 caractères" });
@@ -31,7 +31,7 @@ exports.searchUsers = async (req, res) => {
 // Récupérer tous les utilisateurs (admin seulement)
 exports.getAllUsers = async (req, res) => {
   try {
-    const currentUser = await User.findById(req.user.id);
+    const currentUser = await User.findById(req.user.userId);
     
     if (currentUser.role !== 'admin') {
       return res.status(403).json({ msg: "Accès refusé - Admin requis" });
@@ -51,7 +51,7 @@ exports.getAllUsers = async (req, res) => {
 // Récupérer le profil de l'utilisateur connecté
 exports.getUserProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await User.findById(req.user.userId).select('-password');
     
     if (!user) {
       return res.status(404).json({ msg: "Utilisateur introuvable" });
@@ -68,7 +68,7 @@ exports.getUserProfile = async (req, res) => {
 exports.updateUserProfile = async (req, res) => {
   try {
     const { username, email, firstName, lastName, phone, bio } = req.body;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     console.log("📝 Mise à jour du profil pour:", userId);
     console.log("📝 Données reçues:", { username, email, firstName, lastName, phone, bio });

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { FiMail, FiLock, FiEye, FiEyeOff, FiCheck, FiX, FiShield, FiUser, FiLogIn, FiUserPlus, FiAlertCircle, FiBriefcase } from "react-icons/fi";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import axios from "axios";
+import { api } from "../lib/axios";
 import { ToastContainer, toast } from "react-toastify";
 import { debounce } from "lodash";
 
@@ -193,7 +193,7 @@ const LoginPagePro = () => {
         roleToUse = selectedRole;
       }
 
-      const response = await axios.post("http://localhost:5000/api/auth/login", {
+      const response = await api.post("http://localhost:5000/api/auth/login", {
         ...formData,
         expectedRole: roleToUse // Envoyer le rôle choisi pour validation côté serveur
       });

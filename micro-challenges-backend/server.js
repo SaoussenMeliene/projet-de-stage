@@ -35,6 +35,9 @@ app.use("/api/users", userRoutes);
 const adminRoutes = require("./Routes/admin.routes");
 app.use("/api/admin", adminRoutes);
 
+app.use('/api/users', require('./Routes/user.routes'));
+
+
 app.use("/api/challenges", require("./Routes/challenge.routes"));
 
 app.use("/api/participants", require("./Routes/participant.routes"));

@@ -6,7 +6,7 @@ const Participant = require("../Models/Participant");
 // Récupérer tous les groupes de l'utilisateur connecté
 exports.getUserGroups = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     
     const groups = await Group.find({ members: userId })
       .populate('challenge', 'title description category')
@@ -39,7 +39,7 @@ exports.getUserGroups = async (req, res) => {
 exports.getGroupDetails = async (req, res) => {
   try {
     const { groupId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     const group = await Group.findById(groupId)
       .populate('challenge', 'title description category startDate endDate')
@@ -81,7 +81,7 @@ exports.getGroupDetails = async (req, res) => {
 exports.createGroup = async (req, res) => {
   try {
     const { name, challengeId, description } = req.body;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     // Vérifier que l'utilisateur est admin
     const user = await User.findById(userId);
@@ -127,7 +127,7 @@ exports.addMemberToGroup = async (req, res) => {
   try {
     const { groupId } = req.params;
     const { userId: newMemberId } = req.body;
-    const adminId = req.user.id;
+    const adminId = req.user.userId;
 
     // Vérifier que l'utilisateur est admin
     const admin = await User.findById(adminId);
@@ -186,7 +186,7 @@ exports.addMemberToGroup = async (req, res) => {
 exports.removeMemberFromGroup = async (req, res) => {
   try {
     const { groupId, userId: memberToRemove } = req.params;
-    const adminId = req.user.id;
+    const adminId = req.user.userId;
 
     // Vérifier que l'utilisateur est admin
     const admin = await User.findById(adminId);

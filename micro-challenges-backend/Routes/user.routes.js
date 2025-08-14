@@ -7,24 +7,29 @@ const User = require("../Models/User");
 
 // Route existante
 router.get("/me", verifyToken, async (req, res) => {
-  const u = await User.findById(req.user.id).select("-password");
-  if (!u) return res.status(404).json({ msg: "Utilisateur introuvable" });
+  try {
+    const u = await User.findById(req.user.userId).select("-password");
+    if (!u) return res.status(404).json({ msg: "Utilisateur introuvable" });
 
-  const profileImage = u.profileImage || null; // ex: "/uploads/profiles/xxx.jpg"
+    const profileImage = u.profileImage || null; // ex: "/uploads/profiles/xxx.jpg"
 
-  res.json({
-    user: {
-      id: u._id,
-      username: u.username,
-      firstName: u.firstName,
-      lastName: u.lastName,
-      email: u.email,
-      role: u.role,
-      profileImage,           // <= important
-      createdAt: u.createdAt,
-      updatedAt: u.updatedAt,
-    }
-  });
+    res.json({
+      user: {
+        id: u._id,
+        username: u.username,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        email: u.email,
+        role: u.role,
+        profileImage,           // <= important
+        createdAt: u.createdAt,
+        updatedAt: u.updatedAt,
+      }
+    });
+  } catch (error) {
+    console.error("Erreur /me:", error);
+    res.status(500).json({ msg: "Erreur serveur" });
+  }
 });
 
 // Nouvelles routes
@@ -36,9 +41,11 @@ router.get("/", verifyToken, userCtrl.getAllUsers);
 
 // GET: Récupérer le profil de l'utilisateur connecté
 router.get("/profile", verifyToken, userCtrl.getUserProfile);
-
 // PUT: Mettre à jour le profil utilisateur
 router.put("/profile", verifyToken, userCtrl.updateUserProfile);
+
+
+
 
 // PUT: Mettre à jour l'image de profil
 router.put("/profile-image", verifyToken, handleProfileImageUpload, async (req, res) => {
