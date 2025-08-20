@@ -4,11 +4,10 @@ const Group = require("../Models/Group");
 // Envoyer un message dans un groupe
 exports.sendMessage = async (req, res) => {
   try {
-   const { content } = req.body || {};
+    const { content = "", mediaUrl = "", mediaType = "" } = req.body || {};
 
-  
     const groupId = req.params.groupId;
-    const senderId = req.user.id;
+    const senderId = req.user.userId;
 
     // 🔐 Vérifier si l'utilisateur est membre du groupe
     const group = await Group.findById(groupId);
@@ -19,15 +18,24 @@ exports.sendMessage = async (req, res) => {
     const message = await Message.create({
       sender: senderId,
       group: groupId,
-      content
-     
+      content,
+      mediaUrl,
+      mediaType,
     });
-const populatedMessage = await Message.findById(message._id).populate("sender", "username");
 
-res.status(201).json({
-  message: "Message envoyé avec succès",
-  data: populatedMessage
-});
+    const populatedMessage = await Message.findById(message._id)
+      .populate("sender", "username profileImage firstName lastName");
+
+    // push en temps réel aux membres du groupe
+    try {
+      const io = req.app.get('io');
+      if (io) io.to(`group:${groupId}`).emit('message:new', { groupId, message: populatedMessage });
+    } catch {}
+
+    res.status(201).json({
+      message: "Message envoyé avec succès",
+      data: populatedMessage,
+    });
 
 
   } catch (err) {
@@ -42,12 +50,12 @@ exports.getMessagesByGroup = async (req, res) => {
     const groupId = req.params.groupId;
     const group = await Group.findById(groupId);
 
-    if (!group || !group.members.includes(req.user.id)) {
+    if (!group || !group.members.includes(req.user.userId)) {
       return res.status(403).json({ msg: "Accès refusé à ce groupe" });
     }
 
     const messages = await Message.find({ group: groupId })
-      .populate("sender", "username")
+      .populate("sender", "username profileImage firstName lastName")
       .sort({ createdAt: 1 });
       
     res.status(200).json(messages);

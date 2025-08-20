@@ -1,3 +1,4 @@
+// src/pages/DashboardChallengeModern.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Search,
@@ -12,10 +13,15 @@ import {
   ChevronDown,
   Zap,
 } from "lucide-react";
-// ⬇️ IMPORTANT : ici on suppose que api.get() renvoie déjà 'data'
-import {api} from "../lib/axios"; // <- si chez toi c'est { api }, remets { api } et utilise r.data
+import { useNavigate } from "react-router-dom";
+import { api } from "../lib/axios";                  // ⚠️ instance axios
+import ChallengeCard from "../components/ChallengeCard"; // ⚠️ carte défi
+import { proofService } from "../services/proofService";
 
-// petit hook de debounce pour la recherche
+/** Utilitaire: marche avec ou sans interceptor qui renvoie response.data */
+const unwrap = (r) => (r && typeof r === "object" && "data" in r ? r.data : r);
+
+/** Petit hook debounce pour la recherche */
 function useDebounced(value, delay = 350) {
   const [v, setV] = useState(value);
   useEffect(() => {
@@ -26,6 +32,8 @@ function useDebounced(value, delay = 350) {
 }
 
 export default function DashboardChallengeModern() {
+  const navigate = useNavigate();
+
   const [viewMode, setViewMode] = useState("grid");
   const [activeTab, setActiveTab] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
@@ -46,6 +54,8 @@ export default function DashboardChallengeModern() {
     completed: 0,
   });
 
+  const [userProofs, setUserProofs] = useState([]);
+
   const status = useMemo(() => activeTab, [activeTab]);
 
   const tabs = [
@@ -64,15 +74,35 @@ export default function DashboardChallengeModern() {
     "Éducatif",
   ];
 
-  // Charger les stats au premier rendu
+  const sortLabelByKey = {
+    recent: "Plus récents",
+    popular: "Plus populaires",
+    deadline: "Deadline proche",
+    progress: "Progression",
+  };
+  const sortKeyByLabel = Object.fromEntries(
+    Object.entries(sortLabelByKey).map(([k, v]) => [v, k])
+  );
+
+  // Charger les stats et les preuves de l'utilisateur au premier rendu
   useEffect(() => {
     (async () => {
       try {
-        // ⬇️ si ton api renvoie response => const r = await api.get(...); setStats(r.data);
-        const data = await api.get("/challenges/stats");
+        // Charger les stats
+        const data = unwrap(await api.get("/challenges/stats"));
         setStats(data);
+        
+        // Charger les preuves de l'utilisateur
+        try {
+          const proofsResponse = await proofService.getMyProofs();
+          setUserProofs(proofsResponse.proofs || []);
+          console.log(`📋 ${proofsResponse.proofs?.length || 0} preuves chargées pour l'utilisateur`);
+        } catch (proofsError) {
+          console.log('ℹ️ Impossible de charger les preuves (utilisateur non connecté?)');
+          setUserProofs([]);
+        }
       } catch (e) {
-        console.error(e);
+        console.error("stats error", e);
       }
     })();
   }, []);
@@ -84,15 +114,39 @@ export default function DashboardChallengeModern() {
       const params = {
         page,
         limit: 10,
-        q: qDebounced, // debounced pour éviter de spammer
-        category: category === "Toutes les catégories" ? "" : category,
-        status, // all | active | upcoming | completed
-        sort,   // recent | popular | deadline | progress
       };
-      // ⬇️ si ton api renvoie response => const r = await api.get('/challenges', { params }); const data = r.data;
+      
+      // Ajouter les paramètres seulement s'ils ont une valeur
+      if (qDebounced && qDebounced.trim()) {
+        params.q = qDebounced.trim();
+      }
+      
+      if (category && category !== "Toutes les catégories") {
+        params.category = category;
+      }
+      
+      if (status && status !== "all") {
+        params.status = status;
+      }
+      
+      if (sort) {
+        params.sort = sort;
+      }
+      
+      console.log("Paramètres de recherche:", params);
+      console.log("URL complète:", `/challenges?${new URLSearchParams(params).toString()}`);
+      
       const data = await api.get("/challenges", { params });
-      setItems(data.items || []);
-      setTotal(data?.pagination?.total || 0);
+      console.log("Données reçues de l'API:", data);
+      
+      const items = data.items || data.challenges || data.data || [];
+      const total = data?.pagination?.total || data?.total || data?.count || 0;
+      
+      console.log("Items extraits:", items);
+      console.log("Total extrait:", total);
+      
+      setItems(items);
+      setTotal(total);
     } catch (e) {
       console.error("fetchList error", e);
       setItems([]);
@@ -105,7 +159,22 @@ export default function DashboardChallengeModern() {
   // Recharger quand les filtres changent
   useEffect(() => {
     fetchList().catch(console.error);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qDebounced, category, status, sort]);
+
+  // Fermer le dropdown des filtres quand on clique ailleurs
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showFilters && !event.target.closest('.filter-dropdown')) {
+        setShowFilters(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showFilters]);
 
   return (
     <div className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100 mb-8">
@@ -168,36 +237,61 @@ export default function DashboardChallengeModern() {
         {/* Filtres + vues */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="relative">
+            <div className="relative filter-dropdown">
               <button
                 onClick={() => setShowFilters((s) => !s)}
                 className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2 hover:bg-gray-50 transition-colors duration-200"
               >
                 <Filter size={16} className="text-gray-600" />
-                <span className="text-gray-700 text-sm font-medium">Filtres</span>
+                <span className="text-gray-700 text-sm font-medium">
+                  {category === "Toutes les catégories" ? "Filtres" : category}
+                </span>
+                {category !== "Toutes les catégories" && (
+                  <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">1</span>
+                )}
                 <ChevronDown
                   size={16}
-                  className={`text-gray-500 transition-transform duration-200 ${
-                    showFilters ? "rotate-180" : ""
-                  }`}
+                  className={`text-gray-500 transition-transform duration-200 ${showFilters ? "rotate-180" : ""}`}
                 />
               </button>
 
               {showFilters && (
                 <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg p-4 min-w-[200px] z-10">
                   <div className="space-y-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        Catégories
+                      </div>
+                      {category !== "Toutes les catégories" && (
+                        <button
+                          onClick={() => {
+                            setCategory("Toutes les catégories");
+                            setShowFilters(false);
+                          }}
+                          className="text-xs text-blue-600 hover:text-blue-800"
+                        >
+                          Réinitialiser
+                        </button>
+                      )}
+                    </div>
                     {categories.map((catLabel) => (
                       <button
                         key={catLabel}
                         onClick={() => {
+                          console.log("Catégorie sélectionnée:", catLabel);
                           setCategory(catLabel);
                           setShowFilters(false);
                         }}
                         className={`block w-full text-left px-3 py-2 text-sm rounded-lg transition-colors duration-150 ${
-                          category === catLabel ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-gray-100"
+                          category === catLabel 
+                            ? "bg-blue-50 text-blue-600 font-medium" 
+                            : "text-gray-700 hover:bg-gray-100"
                         }`}
                       >
                         {catLabel}
+                        {category === catLabel && (
+                          <span className="float-right text-blue-500">✓</span>
+                        )}
                       </button>
                     ))}
                   </div>
@@ -208,27 +302,17 @@ export default function DashboardChallengeModern() {
             <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2">
               <span className="text-gray-600 text-sm">Trier par:</span>
               <select
-                className="bg-transparent outline-none text-sm text-gray-700 font-medium"
-                value={
-                  sort === "recent"
-                    ? "Plus récents"
-                    : sort === "popular"
-                    ? "Plus populaires"
-                    : sort === "deadline"
-                    ? "Deadline proche"
-                    : "Progression"
-                }
+                className="bg-transparent outline-none text-sm text-gray-700 font-medium cursor-pointer"
+                value={sortLabelByKey[sort]}
                 onChange={(e) => {
-                  const v = e.target.value;
-                  setSort(
-                    v === "Plus récents" ? "recent" : v === "Plus populaires" ? "popular" : v === "Deadline proche" ? "deadline" : "progress"
-                  );
+                  const newSort = sortKeyByLabel[e.target.value] || "recent";
+                  console.log("Tri sélectionné:", newSort);
+                  setSort(newSort);
                 }}
               >
-                <option>Plus récents</option>
-                <option>Plus populaires</option>
-                <option>Deadline proche</option>
-                <option>Progression</option>
+                {Object.values(sortLabelByKey).map((label) => (
+                  <option key={label} value={label}>{label}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -279,7 +363,7 @@ export default function DashboardChallengeModern() {
                 </span>
               </div>
               {activeTab === tab.id && (
-                <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent rounded-2xl"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent rounded-2xl" />
               )}
             </button>
           ))}
@@ -288,9 +372,7 @@ export default function DashboardChallengeModern() {
 
       {/* Indicateur de résultats */}
       <div className="mt-6 flex items-center justify-between text-sm text-gray-500">
-        <span>
-          {loading ? "Chargement..." : `Affichage de ${items.length} défis sur ${total} au total`}
-        </span>
+        <span>{loading ? "Chargement..." : `Affichage de ${items.length} défis sur ${total} au total`}</span>
         <div className="flex items-center gap-2">
           <Zap className="w-4 h-4 text-yellow-500" />
           <span>Mise à jour en temps réel</span>
@@ -299,30 +381,15 @@ export default function DashboardChallengeModern() {
 
       {/* LISTE / GRILLE */}
       <div className={`mt-6 ${viewMode === "grid" ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3" : "space-y-3"}`}>
-        {items.map((ch) =>
-          viewMode === "grid" ? (
-            <div key={ch._id} className="p-4 rounded-xl border bg-white hover:shadow transition">
-              <div className="text-xs text-gray-500 mb-1 capitalize">{ch.category}</div>
-              <h3 className="font-semibold mb-2">{ch.title}</h3>
-              <p className="text-sm text-gray-500 line-clamp-2">{ch.description}</p>
-              <div className="text-xs text-gray-400 mt-3">
-               {(ch.startAt || ch.startDate) ? new Date(ch.startAt || ch.startDate).toLocaleDateString() : "?"}
-                → {(ch.endAt || ch.endDate) ? new Date(ch.endAt || ch.endDate).toLocaleDateString() : "?"}
-              </div>
-            </div>
-          ) : (
-            <div key={ch._id} className="p-3 rounded-lg border bg-white flex items-center justify-between">
-              <div>
-                <div className="text-xs text-gray-500 capitalize">{ch.category}</div>
-                <div className="font-medium">{ch.title}</div>
-              </div>
-              <div className="text-xs text-gray-400">
-                {ch.startAt ? new Date(ch.startAt).toLocaleDateString() : "?"} →{" "}
-                {ch.endAt ? new Date(ch.endAt).toLocaleDateString() : "?"}
-              </div>
-            </div>
-          )
-        )}
+        {items.map((ch) => (
+          <ChallengeCard
+            key={ch._id}
+            data={ch}
+            view={viewMode}
+            onClick={() => navigate(`/challenges/${ch._id}`)}
+            userProofs={userProofs}
+          />
+        ))}
 
         {!loading && items.length === 0 && (
           <div className="text-gray-500 text-sm col-span-full">Aucun défi trouvé avec ces filtres.</div>
@@ -331,3 +398,4 @@ export default function DashboardChallengeModern() {
     </div>
   );
 }
+

@@ -19,10 +19,12 @@ import {
   Award,
   MessageCircle,
   Heart,
-  Shield
+  Shield,
+  FileText
 } from "lucide-react";
 import Logo from "./Logo";
 import UserAvatar from "./UserAvatar";
+import { useNotifications } from "../hooks/useNotifications";
 
 const HeaderDashboard = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -38,51 +40,50 @@ const HeaderDashboard = () => {
   });
   const location = useLocation();
 
-  // Notifications (à remplacer par des données réelles)
-  const notifications = [
-    {
-      id: 1,
-      type: "success",
-      icon: Award,
-      title: "Badge débloqué !",
-      message: "Vous avez obtenu le badge 'Écolo Expert'",
-      time: "Il y a 2 min",
-      read: false,
-      color: "text-yellow-500 bg-yellow-50"
-    },
-    {
-      id: 2,
-      type: "info",
-      icon: MessageCircle,
-      title: "Nouveau commentaire",
-      message: "Jean a commenté votre défi 'Zéro déchet'",
-      time: "Il y a 15 min",
-      read: false,
-      color: "text-blue-500 bg-blue-50"
-    },
-    {
-      id: 3,
-      type: "reminder",
-      icon: Clock,
-      title: "Rappel de défi",
-      message: "N'oubliez pas de compléter votre défi quotidien",
-      time: "Il y a 1h",
-      read: true,
-      color: "text-purple-500 bg-purple-50"
-    },
-    {
-      id: 4,
-      type: "like",
-      icon: Heart,
-      title: "Votre défi a été aimé",
-      message: "5 personnes ont aimé votre défi créatif",
-      time: "Il y a 2h",
-      read: true,
-      color: "text-pink-500 bg-pink-50"
-    }
-  ];
+  // Utiliser le hook de notifications
+  const { 
+    notifications, 
+    unreadCount, 
+    loading: notificationsLoading, 
+    markAsRead, 
+    markAllAsRead,
+    refreshNotifications 
+  } = useNotifications();
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  // Fonction pour obtenir l'icône selon le type de notification
+  const getNotificationIcon = (notification) => {
+    if (notification.title.includes('approuvée')) return Award;
+    if (notification.title.includes('rejetée')) return X;
+    if (notification.title.includes('Nouveau défi')) return Plus;
+    return Bell;
+  };
+
+  // Fonction pour obtenir la couleur selon le type de notification
+  const getNotificationColor = (notification) => {
+    if (notification.title.includes('approuvée')) return "text-green-500 bg-green-50";
+    if (notification.title.includes('rejetée')) return "text-red-500 bg-red-50";
+    if (notification.title.includes('Nouveau défi')) return "text-blue-500 bg-blue-50";
+    return "text-gray-500 bg-gray-50";
+  };
+
+  // Fonction pour formater le temps
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return "À l'instant";
+    if (diffInMinutes < 60) return `Il y a ${diffInMinutes} min`;
+    if (diffInMinutes < 1440) return `Il y a ${Math.floor(diffInMinutes / 60)}h`;
+    return `Il y a ${Math.floor(diffInMinutes / 1440)} jour(s)`;
+  };
+
+  // Gérer le clic sur une notification
+  const handleNotificationClick = async (notification) => {
+    if (!notification.isRead) {
+      await markAsRead(notification._id);
+    }
+  };
 
   // 🔹 Détecte le scroll pour réduire le logo
   useEffect(() => {
@@ -281,40 +282,71 @@ const HeaderDashboard = () => {
 
                 {/* Liste des notifications */}
                 <div className="max-h-80 overflow-y-auto">
-                  {notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      className={`p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors duration-200 cursor-pointer ${
-                        !notification.read ? 'bg-blue-50/50' : ''
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${notification.color}`}>
-                          <notification.icon size={16} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <h4 className="font-medium text-gray-800 text-sm truncate">
-                              {notification.title}
-                            </h4>
-                            {!notification.read && (
-                              <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
-                            )}
-                          </div>
-                          <p className="text-gray-600 text-xs leading-relaxed mb-1">
-                            {notification.message}
-                          </p>
-                          <span className="text-gray-400 text-xs">{notification.time}</span>
-                        </div>
-                      </div>
+                  {notificationsLoading ? (
+                    <div className="p-4 text-center text-gray-500">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto"></div>
+                      <p className="mt-2 text-sm">Chargement...</p>
                     </div>
-                  ))}
+                  ) : notifications.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500">
+                      <Bell className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm">Aucune notification</p>
+                    </div>
+                  ) : (
+                    notifications.map((notification) => {
+                      const NotificationIcon = getNotificationIcon(notification);
+                      const colorClass = getNotificationColor(notification);
+                      
+                      return (
+                        <div
+                          key={notification._id}
+                          onClick={() => handleNotificationClick(notification)}
+                          className={`p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors duration-200 cursor-pointer ${
+                            !notification.isRead ? 'bg-blue-50/50' : ''
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${colorClass}`}>
+                              <NotificationIcon size={16} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <h4 className="font-medium text-gray-800 text-sm truncate">
+                                  {notification.title}
+                                </h4>
+                                {!notification.isRead && (
+                                  <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+                                )}
+                              </div>
+                              <p className="text-gray-600 text-xs leading-relaxed mb-1">
+                                {notification.message}
+                              </p>
+                              <span className="text-gray-400 text-xs">
+                                {formatTime(notification.createdAt)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
 
                 {/* Footer */}
-                <div className="p-3 border-t border-gray-100">
-                  <button className="w-full text-center text-blue-600 text-sm font-medium hover:text-blue-700 transition-colors duration-200">
-                    Voir toutes les notifications
+                <div className="p-3 border-t border-gray-100 space-y-2">
+                  {unreadCount > 0 && (
+                    <button 
+                      onClick={markAllAsRead}
+                      className="w-full text-center text-green-600 text-sm font-medium hover:text-green-700 transition-colors duration-200"
+                    >
+                      Marquer tout comme lu ({unreadCount})
+                    </button>
+                  )}
+                  <button 
+                    onClick={refreshNotifications}
+                    className="w-full text-center text-blue-600 text-sm font-medium hover:text-blue-700 transition-colors duration-200"
+                  >
+                    Actualiser
                   </button>
                 </div>
               </div>

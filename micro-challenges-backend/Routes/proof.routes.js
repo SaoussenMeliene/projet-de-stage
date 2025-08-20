@@ -2,33 +2,34 @@ const express = require("express");
 const router = express.Router();
 const proofCtrl = require("../Controllers/proof.controller");
 const verifyToken = require("../Middleware/auth");
-const { upload } = require("../Middleware/upload"); // attention à la casse ici !
+const isAdmin = require("../Middleware/isAdmin");
 
-// Soumettre une preuve (commentaire ou fichier ou les deux)
-router.post(
-  "/:challengeId",
-  verifyToken,
-  upload.single("file"),         // ← multer gère le champ "file"
-  proofCtrl.submitProof
-);
+// Route de test
+router.get("/test", (req, res) => {
+  res.json({ msg: "Routes proof fonctionnelles !" });
+});
 
-//  Admin ou user : voir toutes les preuves d’un challenge
-router.get(
-  "/challenge/:challengeId",
-  verifyToken,
-  proofCtrl.getProofsForChallenge
-);
+// POST: Soumettre une preuve pour un défi
+router.post("/submit/:challengeId", verifyToken, proofCtrl.uploadMiddleware, proofCtrl.submitProof);
 
-//  Admin : valider ou refuser une preuve
-router.patch(
-  "/:proofId",
-  verifyToken,
-  proofCtrl.validateProof
-);
+// GET: Obtenir mes preuves (utilisateur connecté)
+router.get("/my-proofs", verifyToken, proofCtrl.getMyProofs);
 
-router.get("/rewards/:userId", verifyToken, proofCtrl.getUserRewards);
+// GET: Obtenir une preuve spécifique
+router.get("/:proofId", verifyToken, proofCtrl.getProofById);
 
+// === ROUTES ADMIN ===
 
+// GET: Obtenir les preuves en attente (Admin)
+router.get("/admin/pending", verifyToken, isAdmin, proofCtrl.getPendingProofs);
 
+// GET: Obtenir toutes les preuves avec filtres (Admin)
+router.get("/admin/all", verifyToken, isAdmin, proofCtrl.getAllProofs);
+
+// PUT: Approuver une preuve (Admin)
+router.put("/admin/:proofId/approve", verifyToken, isAdmin, proofCtrl.approveProof);
+
+// PUT: Rejeter une preuve (Admin)
+router.put("/admin/:proofId/reject", verifyToken, isAdmin, proofCtrl.rejectProof);
 
 module.exports = router;

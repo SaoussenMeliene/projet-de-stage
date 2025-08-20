@@ -1,5 +1,5 @@
 
-import api from "../lib/axios";
+import { api } from "../lib/axios";
 
 const normalizeParams = ({
   page = 1,
@@ -26,5 +26,6 @@ export const stats = () =>
 
 export const create = (payload) =>
   api.post("/challenges", payload).then((r) => r.data);
-
-export default { list, stats, create };
+export const getById = (id) =>
+  api.get(`/challenges/${id}`).then((r) => r.data);
+export default { list, stats, create ,getById };

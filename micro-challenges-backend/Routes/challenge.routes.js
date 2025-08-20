@@ -1,20 +1,23 @@
+// Routes/challenge.routes.js (CommonJS)
 const express = require("express");
-const router = express.Router();
 const {
   listChallenges,
   getChallengeStats,
-  createChallenge
+  getChallengeById,
+  createChallenge,
+  joinChallenge,
+  leaveChallenge,
 } = require("../Controllers/challenge.controller");
-// const verifyToken = require("../Middleware/auth"); // si tu veux protéger la création
 
-// liste + filtres + recherche + tri + pagination
+const router = express.Router();
+
 router.get("/", listChallenges);
-
-// stats (all, active, upcoming, completed)
 router.get("/stats", getChallengeStats);
-
-// création (optionnel pour tester)
-router.post("/", /* verifyToken, */ createChallenge);
+router.get("/:id", getChallengeById);
+router.post("/", createChallenge);
+router.post("/:id/join", joinChallenge);
+router.post("/:id/leave", leaveChallenge);
 
 module.exports = router;
+
 

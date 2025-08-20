@@ -8,7 +8,7 @@ const ChallengeSchema = new mongoose.Schema(
     // stocke un slug propre: 'ecologique', 'sportif', etc.
     category: {
       type: String,
-      enum: ['solidaire', 'ecologique', 'creatif', 'sportif', 'educatif'],
+      enum: ['solidaire', 'écologique', 'créatif', 'sportif', 'éducatif', 'ecologique', 'creatif', 'educatif'],
       required: true,
     },
     tags: [{ type: String }],
@@ -23,6 +23,7 @@ const ChallengeSchema = new mongoose.Schema(
     likesCount: { type: Number, default: 0 },
     progressAvg: { type: Number, default: 0 },
     coverImage: { type: String, default: null },
+    image: { type: String, default: null }, // Alias pour coverImage
 
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],

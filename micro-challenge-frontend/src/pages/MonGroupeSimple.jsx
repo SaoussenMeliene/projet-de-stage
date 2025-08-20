@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import HeaderDashboard from "../components/HeaderDashboard";
+import PollComponent from "../components/PollComponent";
+import { groupService } from "../services/groupService";
 import {
   Users,
   Plus,
@@ -11,51 +13,291 @@ import {
   Camera,
   Image as ImageIcon,
   Trophy,
-  Heart
+  Heart,
+  Loader,
+  AlertCircle,
+  Leaf,
+  Award
 } from "lucide-react";
 
 const MonGroupeSimple = () => {
   const [activeTab, setActiveTab] = useState('messagerie');
   const [newMessage, setNewMessage] = useState('');
   const [messages, setMessages] = useState([]);
+  const [sending, setSending] = useState(false);
   const [showGroupList, setShowGroupList] = useState(true);
   const [selectedGroup, setSelectedGroup] = useState(null);
+  const [groupes, setGroupes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [typingUsers, setTypingUsers] = useState({}); // { [groupId]: Set<userId> }
   const messagesEndRef = useRef(null);
+  const lastGroupIdRef = useRef(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  // Image en attente de confirmation
+  const [pendingImage, setPendingImage] = useState(null);
+  const [pendingImageUrl, setPendingImageUrl] = useState('');
+  
+  // Actions rapides
+  const [showQuickPoll, setShowQuickPoll] = useState(false);
+  const [showEncouragement, setShowEncouragement] = useState(false);
 
-  const groupes = [
-    {
-      id: 1,
-      name: "Éco-Warriors",
-      description: "Groupe dédié aux défis écologiques",
-      members: 6,
-      avatarColor: "from-green-400 to-blue-500"
-    },
-    {
-      id: 2,
-      name: "Tech Innovators",
-      description: "Défis technologiques et innovation",
-      members: 8,
-      avatarColor: "from-purple-400 to-pink-500"
-    }
-  ];
+  // Decode userId from JWT (unverified, for UI only)
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      if (!token) return;
+      const parts = token.split('.');
+      if (parts.length !== 3) return;
+      const payload = JSON.parse(atob(parts[1]));
+      if (payload?.userId) setCurrentUserId(String(payload.userId));
+    } catch {}
+  }, []);
 
-  const handleGroupSelect = (group) => {
-    setSelectedGroup(group);
-    setShowGroupList(false);
+  // Fonction pour obtenir la couleur selon la catégorie
+  const getCategoryColor = (category) => {
+    const cat = category?.toLowerCase() || '';
+    if (cat.includes('écolog') || cat.includes('ecolog')) return "from-green-400 to-emerald-500";
+    if (cat.includes('sport')) return "from-blue-400 to-indigo-500";
+    if (cat.includes('créat') || cat.includes('creat')) return "from-purple-400 to-pink-500";
+    if (cat.includes('solid')) return "from-orange-400 to-red-500";
+    if (cat.includes('éduc') || cat.includes('educ')) return "from-yellow-400 to-amber-500";
+    return "from-gray-400 to-slate-500";
   };
 
-  const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      const message = {
-        id: Date.now(),
-        content: newMessage,
-        author: 'Vous',
-        time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-        isOwn: true
-      };
-      setMessages([...messages, message]);
-      setNewMessage('');
+  // Fonction pour obtenir l'icône selon la catégorie
+  const getCategoryIcon = (category) => {
+    const cat = category?.toLowerCase() || '';
+    if (cat.includes('écolog') || cat.includes('ecolog')) return Leaf;
+    if (cat.includes('sport')) return Trophy;
+    if (cat.includes('créat') || cat.includes('creat')) return Target;
+    if (cat.includes('solid')) return Heart;
+    if (cat.includes('éduc') || cat.includes('educ')) return Award;
+    return Users;
+  };
+
+  // Charger les groupes de l'utilisateur
+  useEffect(() => {
+    const loadUserGroups = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        console.log('🔍 Chargement des groupes de l\'utilisateur...');
+        
+        const response = await groupService.getUserGroups();
+        console.log('✅ Groupes chargés:', response);
+        
+        // Transformer les données pour l'interface
+        const transformedGroups = response.map(group => ({
+          id: group._id,
+          name: group.name,
+          description: group.description || `Groupe de discussion pour le défi "${group.challenge?.title || 'Défi'}"`,
+          members: group.stats?.totalMembers || group.members?.length || 0,
+          avatarColor: getCategoryColor(group.challenge?.category),
+          category: group.challenge?.category || 'Autre',
+          challengeTitle: group.challenge?.title || 'Défi',
+          totalPoints: group.stats?.totalPoints || 0,
+          activeParticipants: group.stats?.activeParticipants || 0,
+          rawData: group // Garder les données originales
+        }));
+        
+        setGroupes(transformedGroups);
+        console.log(`📊 ${transformedGroups.length} groupes transformés`);
+        
+      } catch (err) {
+        console.error('❌ Erreur lors du chargement des groupes:', err);
+        setError(err.message || 'Erreur lors du chargement des groupes');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUserGroups();
+  }, []);
+
+  const handleGroupSelect = async (group) => {
+    setSelectedGroup(group);
+    setShowGroupList(false);
+    try {
+      // rejoindre la room du groupe côté socket
+      try {
+        const { connectSocket } = await import('../lib/socket');
+        const s = connectSocket();
+        // quitter l'ancienne room si besoin
+        if (lastGroupIdRef.current && lastGroupIdRef.current !== group.id) {
+          s.emit('group:leave', { groupId: lastGroupIdRef.current });
+        }
+        lastGroupIdRef.current = group.id;
+        s.emit('group:join', { groupId: group.id });
+      } catch {}
+      // Charger messages
+      const { messageService } = await import('../services/messageService');
+      const msgs = await messageService.getGroupMessages(group.id);
+
+      // Charger membres dynamiques + participants (scores)
+      const { groupService } = await import('../services/groupService');
+      const details = await groupService.getGroupDetails(group.id);
+
+      // Construire une map des scores par userId à partir des participants
+      const scoreMap = new Map();
+      (details.participants || []).forEach((p) => {
+        if (p.user?._id) scoreMap.set(String(p.user._id), p.score || 0);
+      });
+
+      // Déduire en ligne/hors-ligne selon l'activité message récente (5 min)
+      const now = Date.now();
+      const recentMap = new Map();
+      (msgs || []).forEach((m) => {
+        if (m.sender?._id && m.createdAt) {
+          const last = recentMap.get(String(m.sender._id)) || 0;
+          const ts = new Date(m.createdAt).getTime();
+          if (ts > last) recentMap.set(String(m.sender._id), ts);
+        }
+      });
+
+      // Enrichir la liste des membres
+      const members = Array.isArray(details.members) ? details.members.map((u) => ({
+        ...u,
+        _id: u._id,
+        username: u.username,
+        email: u.email,
+        score: scoreMap.get(String(u._id)) || 0,
+        online: (now - (recentMap.get(String(u._id)) || 0)) <= 5 * 60 * 1000,
+      })) : [];
+
+      setMessages(msgs || []);
+      setSelectedGroup((prev) => ({
+        ...prev,
+        rawData: details,
+        membersList: members,
+        stats: details.stats || prev?.stats || {},
+      }));
+    } catch (e) {
+      console.error('Erreur chargement groupe/messages:', e);
+      setMessages([]);
     }
+  };
+
+  const handleSendMessage = async (payload = null) => {
+    const content = payload?.content ?? newMessage.trim();
+    const file = payload?.file || null;
+    if (!content && !file) return;
+    try {
+      setSending(true);
+      const { messageService, uploadService } = await import('../services/messageService');
+      let mediaUrl = '';
+      let mediaType = '';
+      if (file) {
+        const up = await uploadService.uploadImage(file);
+        mediaUrl = up.url || up.data?.url || '';
+        mediaType = 'image';
+      }
+      const sent = await messageService.sendMessage(selectedGroup.id, { content, mediaUrl, mediaType });
+      const saved = sent.data || sent;
+      // Ajout unique: évite les doublons si le socket renvoie le même message
+      setMessages((prev) => {
+        const id = saved && saved._id ? String(saved._id) : null;
+        const signature = id || `${saved?.sender?._id || ''}|${saved?.content || ''}|${saved?.createdAt || ''}`;
+        const exists = prev.some((m) => {
+          const mid = m && m._id ? String(m._id) : null;
+          const sig = mid || `${m?.sender?._id || ''}|${m?.content || ''}|${m?.createdAt || ''}`;
+          return sig === signature;
+        });
+        if (exists) return prev;
+        return [...prev, saved];
+      });
+      setNewMessage('');
+    } catch (e) {
+      console.error('Erreur envoi message:', e);
+      alert("Impossible d'envoyer le message");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const fileInputRef = useRef(null);
+  const textAreaRef = useRef(null);
+
+  const openImagePicker = () => fileInputRef.current && fileInputRef.current.click();
+  const onImageSelected = async (e) => {
+    const f = e.target.files?.[0];
+    if (f) {
+      // Met en attente et affiche un aperçu avec validation
+      setPendingImage(f);
+      const url = URL.createObjectURL(f);
+      setPendingImageUrl(url);
+      // Ne pas envoyer tout de suite
+      e.target.value = '';
+    }
+  };
+
+  const confirmSendPendingImage = async () => {
+    if (!pendingImage) return;
+    await handleSendMessage({ content: newMessage.trim(), file: pendingImage });
+    // Nettoyage
+    try { if (pendingImageUrl) URL.revokeObjectURL(pendingImageUrl); } catch {}
+    setPendingImage(null);
+    setPendingImageUrl('');
+  };
+
+  const cancelPendingImage = () => {
+    // Annuler l'envoi de l'image
+    try { if (pendingImageUrl) URL.revokeObjectURL(pendingImageUrl); } catch {}
+    setPendingImage(null);
+    setPendingImageUrl('');
+  };
+
+  // Actions rapides
+  const handleQuickPoll = () => {
+    setActiveTab('sondages');
+    setShowQuickPoll(true);
+  };
+
+  const handleQuickPhoto = () => {
+    openImagePicker();
+  };
+
+  const handleQuickEncouragement = async () => {
+    const encouragements = [
+      "Bravo à tous ! 🎉",
+      "Continuez comme ça ! 💪",
+      "Excellent travail d'équipe ! 👏",
+      "Vous êtes formidables ! ⭐",
+      "Fiers de faire partie de ce groupe ! 🌟",
+      "Ensemble, nous sommes plus forts ! 🤝"
+    ];
+    const randomEncouragement = encouragements[Math.floor(Math.random() * encouragements.length)];
+    
+    // Basculer vers l'onglet messagerie pour voir le message
+    setActiveTab('messagerie');
+    
+    // Envoyer le message d'encouragement
+    await handleSendMessage({ content: randomEncouragement });
+  };
+
+
+
+  const insertEmoji = (emoji) => {
+    const el = textAreaRef.current;
+    if (!el) {
+      setNewMessage((t) => `${t}${t && !t.endsWith(' ') ? ' ' : ''}${emoji}`);
+      return;
+    }
+    const start = el.selectionStart ?? newMessage.length;
+    const end = el.selectionEnd ?? newMessage.length;
+    const before = newMessage.slice(0, start);
+    const after = newMessage.slice(end);
+    const needsSpace = before && !before.endsWith(' ');
+    const value = `${before}${needsSpace ? ' ' : ''}${emoji}${after}`;
+    setNewMessage(value);
+    // reposition cursor after emoji
+    const pos = (before.length + (needsSpace ? 1 : 0) + emoji.length);
+    requestAnimationFrame(() => {
+      el.focus();
+      try {
+        el.setSelectionRange(pos, pos);
+      } catch {}
+    });
   };
 
   const handleKeyDown = (e) => {
@@ -64,6 +306,85 @@ const MonGroupeSimple = () => {
       handleSendMessage();
     }
   };
+
+  // Socket presence & messages live (protégé contre double enregistrement en dev/StrictMode)
+  const listenersReadyRef = useRef(false);
+  useEffect(() => {
+    let s;
+    let listenersBound = false;
+    import('../lib/socket').then(({ connectSocket }) => {
+      s = connectSocket();
+      if (listenersReadyRef.current) return; // déjà enregistré
+      listenersReadyRef.current = true;
+      listenersBound = true;
+
+      s.on('presence:update', ({ userId, online }) => {
+        setSelectedGroup((prev) => {
+          if (!prev?.membersList) return prev;
+          const updated = prev.membersList.map((m) =>
+            String(m._id) === String(userId) ? { ...m, online } : m
+          );
+          return { ...prev, membersList: updated };
+        });
+      });
+
+      // typing updates par room
+      s.on('typing:update', ({ groupId, userId, typing }) => {
+        setTypingUsers((prev) => {
+          const setForGroup = new Set(prev[groupId] || []);
+          if (typing) setForGroup.add(String(userId));
+          else setForGroup.delete(String(userId));
+          return { ...prev, [groupId]: Array.from(setForGroup) };
+        });
+      });
+
+      // nouveaux messages en temps réel
+      s.on('message:new', ({ groupId, message }) => {
+        setSelectedGroup((prev) => {
+          if (!prev || String(prev.id) !== String(groupId)) return prev;
+          setMessages((msgs) => {
+            const id = message && message._id ? String(message._id) : null;
+            const signature = id || `${message?.sender?._id || ''}|${message?.content || ''}|${message?.createdAt || ''}`;
+            const exists = msgs.some((m) => {
+              const mid = m && m._id ? String(m._id) : null;
+              const sig = mid || `${m?.sender?._id || ''}|${m?.content || ''}|${m?.createdAt || ''}`;
+              return sig === signature;
+            });
+            if (exists) return msgs;
+            return [...msgs, message];
+          });
+          return prev;
+        });
+      });
+
+      // Événements sondages en temps réel
+      s.on('poll:created', ({ poll, groupId }) => {
+        console.log('Nouveau sondage créé:', poll);
+        // Le composant PollComponent se rechargera automatiquement
+      });
+
+      s.on('poll:voted', ({ pollId, optionIndex, poll, groupId }) => {
+        console.log('Nouveau vote sur sondage:', pollId);
+        // Le composant PollComponent se rechargera automatiquement
+      });
+
+      s.on('poll:closed', ({ pollId, poll, groupId }) => {
+        console.log('Sondage clôturé:', pollId);
+        // Le composant PollComponent se rechargera automatiquement
+      });
+    });
+    return () => {
+      if (s && listenersBound) {
+        s.off('presence:update');
+        s.off('typing:update');
+        s.off('message:new');
+        s.off('poll:created');
+        s.off('poll:voted');
+        s.off('poll:closed');
+      }
+      listenersReadyRef.current = false; // permet ré-enregistrement propre après démontage
+    };
+  }, []);
 
   // Interface de discussion
   if (!showGroupList && selectedGroup) {
@@ -85,13 +406,13 @@ const MonGroupeSimple = () => {
                   <h2 className="text-sm font-bold text-gray-800">{selectedGroup?.name || 'Éco-Warriors'}</h2>
                   <div className="flex items-center gap-2 text-xs text-gray-500">
                     <span className="flex items-center gap-1">
-                      <div className="w-1 h-1 bg-green-500 rounded-full"></div>
-                      6 en ligne
+                      <div className={`w-1 h-1 rounded-full ${ (selectedGroup?.membersList?.some(m => m.online) ? 'bg-green-500' : 'bg-gray-400') }`}></div>
+                      {(selectedGroup?.membersList?.filter(m => m.online).length || 0)} en ligne
                     </span>
                     <span>•</span>
-                    <span>247 msg</span>
+                    <span>{messages.length} msg</span>
                     <span>•</span>
-                    <span>1,450 pts</span>
+                    <span>{selectedGroup?.stats?.totalPoints ?? 0} pts</span>
                   </div>
                 </div>
               </div>
@@ -140,126 +461,32 @@ const MonGroupeSimple = () => {
             {activeTab === 'messagerie' && (
               <>
                 <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-white">
-                  {/* Messages ultra-compacts */}
-                  <div className="flex gap-2">
-                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                      MD
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <span className="text-xs font-bold text-gray-900">Marie Dubois</span>
-                        <span className="text-xs text-gray-500">14:30</span>
-                        <span className="text-xs bg-yellow-100 text-yellow-700 px-1 py-0.5 rounded">Leader</span>
-                      </div>
-                      <div className="bg-gray-50 p-2 rounded-lg border border-gray-200">
-                        <p className="text-gray-800 text-sm leading-snug">Salut tout le monde ! J'ai trouvé une super astuce pour réduire les emballages au supermarché 🌱</p>
 
-                        {/* Réactions compactes */}
-                        <div className="flex items-center gap-1 mt-1.5">
-                          <button className="flex items-center gap-0.5 px-1 py-0.5 bg-blue-50 hover:bg-blue-100 rounded text-xs">
-                            <span>👍</span>
-                            <span className="text-blue-600 font-medium">4</span>
-                          </button>
-                          <button className="flex items-center gap-0.5 px-1 py-0.5 bg-green-50 hover:bg-green-100 rounded text-xs">
-                            <span>🌱</span>
-                            <span className="text-green-600 font-medium">3</span>
-                          </button>
-                          <button className="p-0.5 hover:bg-gray-100 rounded">
-                            <Plus size={8} className="text-gray-400" />
-                          </button>
+
+                  {/* Messages dynamiques depuis l'API */}
+                  {messages.map((m) => (
+                    <div key={m._id} className="flex gap-3">
+                      <div className="w-8 h-8 bg-gray-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                        {(m.sender?.username || 'U').slice(0,2).toUpperCase()}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-bold text-gray-900">{m.sender?.username || 'Utilisateur'}</span>
+                          <span className="text-[10px] text-gray-500">{m.createdAt ? new Date(m.createdAt).toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'}) : ''}</span>
                         </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Message de Thomas */}
-                  <div className="flex gap-4 group">
-                    <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                      TM
-                    </div>
-                    <div className="flex-1 max-w-2xl">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-sm font-bold text-gray-900 hover:text-green-600 cursor-pointer">Thomas Martin</span>
-                        <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded-full">14:32</span>
-                      </div>
-                      <div className="bg-white p-4 rounded-2xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
-                        <p className="text-gray-800 leading-relaxed">Partage-nous ça Marie ! J'ai encore du mal avec les fruits et légumes... 🤔</p>
-
-                        {/* Réactions */}
-                        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
-                          <button className="flex items-center gap-1 px-2 py-1 bg-yellow-50 hover:bg-yellow-100 rounded-full transition-colors text-xs">
-                            <span>🤔</span>
-                            <span className="text-yellow-600 font-medium">2</span>
-                          </button>
-                          <button className="p-1 hover:bg-gray-100 rounded-full transition-colors">
-                            <Plus size={12} className="text-gray-400" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Message d'Emma avec photo */}
-                  <div className="flex gap-4 group">
-                    <div className="w-12 h-12 bg-pink-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                      ER
-                    </div>
-                    <div className="flex-1 max-w-2xl">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-sm font-bold text-gray-900 hover:text-pink-600 cursor-pointer">Emma Rousseau</span>
-                        <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded-full">14:35</span>
-                      </div>
-                      <div className="bg-white p-4 rounded-2xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
-                        <p className="text-gray-800 leading-relaxed mb-4">Voici mes sacs réutilisables ! Ils sont parfaits pour les courses 🛍️</p>
-
-                        {/* Image simulée */}
-                        <div className="relative group/image">
-                          <div className="bg-gradient-to-br from-pink-50 to-purple-50 p-6 rounded-xl border-2 border-dashed border-pink-200 text-center hover:border-pink-400 transition-all duration-300 cursor-pointer transform hover:scale-105">
-                            <ImageIcon className="w-12 h-12 text-pink-400 mx-auto mb-3 group-hover/image:scale-110 transition-transform" />
-                            <span className="text-sm text-pink-600 font-semibold">sacs_reutilisables.jpg</span>
-                            <p className="text-xs text-pink-500 mt-1">Cliquez pour agrandir</p>
-                          </div>
-                        </div>
-
-                        {/* Réactions */}
-                        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
-                          <button className="flex items-center gap-1 px-2 py-1 bg-pink-50 hover:bg-pink-100 rounded-full transition-colors text-xs">
-                            <span>💕</span>
-                            <span className="text-pink-600 font-medium">6</span>
-                          </button>
-                          <button className="flex items-center gap-1 px-2 py-1 bg-green-50 hover:bg-green-100 rounded-full transition-colors text-xs">
-                            <span>♻️</span>
-                            <span className="text-green-600 font-medium">4</span>
-                          </button>
-                          <button className="p-1 hover:bg-gray-100 rounded-full transition-colors">
-                            <Plus size={12} className="text-gray-400" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Messages dynamiques */}
-                  {messages.map((message) => (
-                    <div key={message.id} className={`flex gap-4 group ${message.isOwn ? 'flex-row-reverse' : ''}`}>
-                      <div className={`w-12 h-12 ${message.isOwn ? 'bg-yellow-500' : 'bg-gray-500'} rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg`}>
-                        {message.isOwn ? 'ME' : 'U'}
-                      </div>
-                      <div className={`flex-1 max-w-2xl ${message.isOwn ? 'flex flex-col items-end' : ''}`}>
-                        <div className={`flex items-center gap-3 mb-2 ${message.isOwn ? 'flex-row-reverse' : ''}`}>
-                          <span className={`text-sm font-bold ${message.isOwn ? 'text-yellow-700' : 'text-gray-900'}`}>
-                            {message.author}
-                          </span>
-                          <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded-full">{message.time}</span>
-                        </div>
-                        <div className={`${message.isOwn ? 'bg-yellow-400 text-yellow-900' : 'bg-white'} p-4 rounded-2xl shadow-md border border-gray-100 hover:shadow-lg transition-all duration-300`}>
-                          <p className={`${message.isOwn ? 'text-yellow-900' : 'text-gray-800'} leading-relaxed`}>
-                            {message.content}
-                          </p>
+                        <div className="bg-white p-3 rounded-lg border border-gray-100">
+                          {m.content ? (
+                            <p className="text-gray-800 text-sm">{m.content}</p>
+                          ) : null}
+                          {m.mediaUrl ? (
+                            <img src={m.mediaUrl} alt="media" className="mt-2 max-w-xs rounded-lg border" />
+                          ) : null}
                         </div>
                       </div>
                     </div>
                   ))}
+
+
 
                   <div ref={messagesEndRef} />
                 </div>
@@ -267,17 +494,44 @@ const MonGroupeSimple = () => {
                 {/* Zone de saisie ultra-compacte */}
                 <div className="bg-yellow-400 p-2">
                   <div className="flex items-center gap-2">
-                    <button className="p-1 hover:bg-yellow-500 rounded transition-colors">
+                    <button className="p-1 hover:bg-yellow-500 rounded transition-colors" onClick={openImagePicker} title="Envoyer une image">
                       <Paperclip size={14} className="text-yellow-800" />
                     </button>
-                    <button className="p-1 hover:bg-yellow-500 rounded transition-colors">
+                    <button className="p-1 hover:bg-yellow-500 rounded transition-colors" onClick={openImagePicker} title="Prendre une photo">
                       <Camera size={14} className="text-yellow-800" />
                     </button>
 
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={onImageSelected}
+                    />
+
                     <div className="flex-1 relative">
                       <textarea
+                        ref={textAreaRef}
                         value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setNewMessage(val);
+                          // typing events debounced
+                          import('../lib/socket').then(({ connectSocket }) => {
+                            const s = connectSocket();
+                            const gid = selectedGroup?.id;
+                            if (!gid) return;
+                            if (val && val.trim().length > 0) {
+                              s.emit('typing:start', { groupId: gid });
+                              clearTimeout(window.__typingTimeout);
+                              window.__typingTimeout = setTimeout(() => {
+                                s.emit('typing:stop', { groupId: gid });
+                              }, 1500);
+                            } else {
+                              s.emit('typing:stop', { groupId: gid });
+                            }
+                          });
+                        }}
                         onKeyDown={handleKeyDown}
                         placeholder="Tapez votre message..."
                         className="w-full p-2 pr-12 bg-yellow-300 text-yellow-900 placeholder-yellow-700 rounded-xl border-none focus:outline-none focus:ring-1 focus:ring-yellow-500 resize-none text-sm"
@@ -285,18 +539,45 @@ const MonGroupeSimple = () => {
                         style={{ minHeight: '36px', maxHeight: '80px' }}
                       />
 
+                      {/* Panneau de confirmation d'image */}
+                      {pendingImage && (
+                        <div className="absolute left-0 right-10 -top-36 bg-white border border-yellow-300 rounded-lg shadow p-2 flex items-center gap-2">
+                          <img src={pendingImageUrl} alt="aperçu" className="w-20 h-20 object-cover rounded border" />
+                          <div className="flex-1">
+                            <div className="text-xs text-gray-700 truncate mb-1">{pendingImage.name}</div>
+                            <div className="flex gap-2">
+                              <button onClick={confirmSendPendingImage} className="px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded">Envoyer</button>
+                              <button onClick={cancelPendingImage} className="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 text-gray-800 rounded">Annuler</button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="absolute right-1 bottom-1 flex items-center gap-0.5">
-                        <button className="p-1 hover:bg-yellow-400 rounded transition-colors">
+                        <button
+                          className="p-1 hover:bg-yellow-400 rounded transition-colors"
+                          onClick={() => insertEmoji('😊')}
+                          title="Ajouter un emoji"
+                        >
                           <Smile size={14} className="text-yellow-800" />
                         </button>
                         <button
-                          onClick={handleSendMessage}
-                          disabled={!newMessage.trim()}
+                          onClick={() => {
+                            if (pendingImage) {
+                              // Si une image est en attente, demander confirmation via le panneau ci-dessous
+                              return;
+                            }
+                            handleSendMessage();
+                          }}
+                          disabled={sending || (!newMessage.trim() && !pendingImage)}
                           className={`p-1 rounded transition-all duration-200 ${
-                            newMessage.trim()
-                              ? 'bg-yellow-600 hover:bg-yellow-700 text-white shadow-sm'
-                              : 'bg-yellow-200 text-yellow-500 cursor-not-allowed'
+                            sending
+                              ? 'bg-yellow-300 text-yellow-700 cursor-wait'
+                              : (newMessage.trim() || pendingImage)
+                                ? 'bg-yellow-600 hover:bg-yellow-700 text-white shadow-sm'
+                                : 'bg-yellow-200 text-yellow-500 cursor-not-allowed'
                           }`}
+                          title={sending ? 'Envoi...' : (pendingImage ? 'Confirmez l\'image ci-dessous' : 'Envoyer')}
                         >
                           <Send size={14} />
                         </button>
@@ -312,7 +593,17 @@ const MonGroupeSimple = () => {
                         <div className="w-0.5 h-0.5 bg-yellow-600 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
                         <div className="w-0.5 h-0.5 bg-yellow-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
                       </div>
-                      <span>Thomas écrit...</span>
+                      {(() => {
+                        const gid = selectedGroup?.id;
+                        const ids = (typingUsers[gid] || []).filter((id) => id !== String(currentUserId));
+                        if (!gid || ids.length === 0) return null;
+                        const names = ids.map((id) => {
+                          const m = selectedGroup?.membersList?.find((u) => String(u._id) === String(id));
+                          return m?.username || 'Quelqu\'un';
+                        });
+                        const label = names.length === 1 ? `${names[0]} écrit...` : `${names[0]} et ${names.length - 1} autre(s) écrivent...`;
+                        return <span>{label}</span>;
+                      })()}
                     </div>
 
                     {/* Suggestions en ligne */}
@@ -349,20 +640,12 @@ const MonGroupeSimple = () => {
 
             {/* Contenu Sondages */}
             {activeTab === 'sondages' && (
-              <div className="flex-1 p-6 bg-gray-50">
-                <div className="text-center py-16">
-                  <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <Target size={32} className="text-blue-500" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-800 mb-3">Aucun sondage actif</h3>
-                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                    Créez votre premier sondage pour recueillir l'avis des membres du groupe !
-                  </p>
-                  <button className="bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold px-6 py-3 rounded-xl hover:shadow-lg transition-all duration-300 transform hover:scale-105">
-                    Créer un sondage
-                  </button>
-                </div>
-              </div>
+              <PollComponent 
+                groupId={selectedGroup?.id} 
+                currentUserId={currentUserId}
+                autoOpenCreate={showQuickPoll}
+                onCreateFormToggle={(isOpen) => setShowQuickPoll(isOpen)}
+              />
             )}
           </div>
 
@@ -370,169 +653,38 @@ const MonGroupeSimple = () => {
           <div className="w-64 bg-gray-50 border-l border-gray-200 p-2 hidden lg:block">
             <div className="mb-3">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-bold text-gray-800">Membres (8)</h3>
+                <h3 className="text-sm font-bold text-gray-800">Membres ({selectedGroup?.membersList?.length || selectedGroup?.members || 0})</h3>
               </div>
 
               <div className="space-y-1 max-h-48 overflow-y-auto">
-                {/* Marie Dubois - Leader ultra-compact */}
-                <div className="flex items-center justify-between p-1.5 bg-blue-50 rounded hover:bg-blue-100 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-1.5">
-                    <div className="relative">
-                      <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-xs">
-                        MD
+                {Array.isArray(selectedGroup?.membersList) && selectedGroup.membersList.length > 0 ? (
+                  selectedGroup.membersList.map((m) => {
+                    const uname = m.username || m.email || 'Membre';
+                    const initials = uname.slice(0,2).toUpperCase();
+                    return (
+                      <div key={m._id} className="flex items-center justify-between p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <div className="relative">
+                            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                              {initials}
+                            </div>
+                            <div className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${m.online ? 'bg-green-500' : 'bg-gray-300'}`} />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-gray-800">{uname}</span>
+                            <div className="text-[10px] text-gray-500">{m.online ? 'En ligne' : 'Hors ligne'}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 bg-yellow-100 px-2 py-0.5 rounded">
+                          <Trophy size={10} className="text-yellow-600" />
+                          <span className="text-[10px] font-bold text-yellow-800">{m.score || 0}pts</span>
+                        </div>
                       </div>
-                      <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-white"></div>
-                      <div className="absolute -top-0.5 -left-0.5 w-2 h-2 bg-yellow-400 rounded-full flex items-center justify-center">
-                        <span style={{fontSize: '8px'}}>👑</span>
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-xs font-bold text-blue-800">Marie Dubois</span>
-                      <div className="text-xs text-blue-600">Leader</div>
-                    </div>
-                  </div>
-                  <span className="text-xs font-bold text-yellow-600">250pts</span>
-                </div>
-
-                {/* Thomas Martin */}
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
-                        TM
-                      </div>
-                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                    </div>
-                    <div>
-                      <span className="text-sm font-semibold text-gray-800">Thomas Martin</span>
-                      <div className="text-xs text-gray-500">En ligne</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 bg-yellow-100 px-2 py-1 rounded-lg">
-                    <Trophy size={12} className="text-yellow-600" />
-                    <span className="text-xs font-bold text-yellow-800">185pts</span>
-                  </div>
-                </div>
-
-                {/* Sophie Laurent */}
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
-                        SL
-                      </div>
-                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-orange-400 rounded-full border-2 border-white"></div>
-                    </div>
-                    <div>
-                      <span className="text-sm font-semibold text-gray-800">Sophie Laurent</span>
-                      <div className="text-xs text-orange-600">Absent • Il y a 2h</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 bg-yellow-100 px-2 py-1 rounded-lg">
-                    <Trophy size={12} className="text-yellow-600" />
-                    <span className="text-xs font-bold text-yellow-800">220pts</span>
-                  </div>
-                </div>
-
-                {/* Pierre Durand */}
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
-                        PD
-                      </div>
-                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                    </div>
-                    <div>
-                      <span className="text-sm font-semibold text-gray-800">Pierre Durand</span>
-                      <div className="text-xs text-gray-500">En ligne</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 bg-yellow-100 px-2 py-1 rounded-lg">
-                    <Trophy size={12} className="text-yellow-600" />
-                    <span className="text-xs font-bold text-yellow-800">145pts</span>
-                  </div>
-                </div>
-
-                {/* Emma Rousseau */}
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className="w-10 h-10 bg-pink-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
-                        ER
-                      </div>
-                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                    </div>
-                    <div>
-                      <span className="text-sm font-semibold text-gray-800">Emma Rousseau</span>
-                      <div className="text-xs text-gray-500">En ligne</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 bg-yellow-100 px-2 py-1 rounded-lg">
-                    <Trophy size={12} className="text-yellow-600" />
-                    <span className="text-xs font-bold text-yellow-800">195pts</span>
-                  </div>
-                </div>
-
-                {/* Lucas Bernard */}
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
-                        LB
-                      </div>
-                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-gray-400 rounded-full border-2 border-white"></div>
-                    </div>
-                    <div>
-                      <span className="text-sm font-semibold text-gray-800">Lucas Bernard</span>
-                      <div className="text-xs text-gray-500">Hors ligne • Il y a 1j</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 bg-yellow-100 px-2 py-1 rounded-lg">
-                    <Trophy size={12} className="text-yellow-600" />
-                    <span className="text-xs font-bold text-yellow-800">120pts</span>
-                  </div>
-                </div>
-
-                {/* Camille Moreau */}
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className="w-10 h-10 bg-teal-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
-                        CM
-                      </div>
-                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                    </div>
-                    <div>
-                      <span className="text-sm font-semibold text-gray-800">Camille Moreau</span>
-                      <div className="text-xs text-gray-500">En ligne</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 bg-yellow-100 px-2 py-1 rounded-lg">
-                    <Trophy size={12} className="text-yellow-600" />
-                    <span className="text-xs font-bold text-yellow-800">175pts</span>
-                  </div>
-                </div>
-
-                {/* Vous */}
-                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-xl border-2 border-blue-200">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
-                        ME
-                      </div>
-                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                    </div>
-                    <div>
-                      <span className="text-sm font-bold text-blue-800">Vous</span>
-                      <div className="text-xs text-blue-600">En ligne</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 bg-blue-100 px-2 py-1 rounded-lg">
-                    <Trophy size={12} className="text-blue-600" />
-                    <span className="text-xs font-bold text-blue-800">160pts</span>
-                  </div>
-                </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-xs text-gray-500 p-2">Aucun membre</div>
+                )}
               </div>
             </div>
 
@@ -540,15 +692,24 @@ const MonGroupeSimple = () => {
             <div className="mb-3">
               <h3 className="text-sm font-bold text-gray-800 mb-2">Actions rapides</h3>
               <div className="space-y-1">
-                <button className="w-full bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-medium py-1.5 px-2 rounded text-xs flex items-center justify-center gap-1">
+                <button 
+                  onClick={handleQuickPoll}
+                  className="w-full bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-medium py-1.5 px-2 rounded text-xs flex items-center justify-center gap-1 transition-all duration-200 transform hover:scale-105"
+                >
                   <Plus size={12} />
                   Sondage
                 </button>
-                <button className="w-full bg-blue-400 hover:bg-blue-500 text-white font-medium py-1.5 px-2 rounded text-xs flex items-center justify-center gap-1">
+                <button 
+                  onClick={handleQuickPhoto}
+                  className="w-full bg-blue-400 hover:bg-blue-500 text-white font-medium py-1.5 px-2 rounded text-xs flex items-center justify-center gap-1 transition-all duration-200 transform hover:scale-105"
+                >
                   <Camera size={12} />
                   Photo
                 </button>
-                <button className="w-full bg-pink-400 hover:bg-pink-500 text-white font-medium py-1.5 px-2 rounded text-xs flex items-center justify-center gap-1">
+                <button 
+                  onClick={handleQuickEncouragement}
+                  className="w-full bg-pink-400 hover:bg-pink-500 text-white font-medium py-1.5 px-2 rounded text-xs flex items-center justify-center gap-1 transition-all duration-200 transform hover:scale-105"
+                >
                   <Heart size={12} />
                   Encourager
                 </button>
@@ -654,27 +815,7 @@ const MonGroupeSimple = () => {
                 </div>
               </div>
 
-              {/* Activité récente */}
-              <div className="mt-6">
-                <h4 className="text-sm font-bold text-gray-800 mb-3">Activité récente</h4>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span>Marie a complété le défi "Zéro déchet"</span>
-                    <span className="text-gray-400">• Il y a 2h</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span>Thomas a partagé une photo</span>
-                    <span className="text-gray-400">• Il y a 4h</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    <span>Nouveau membre: Camille Moreau</span>
-                    <span className="text-gray-400">• Hier</span>
-                  </div>
-                </div>
-              </div>
+
             </div>
           </div>
         </div>
@@ -699,37 +840,106 @@ const MonGroupeSimple = () => {
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {groupes.map((groupe) => (
-            <div
-              key={groupe.id}
-              className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 cursor-pointer"
-              onClick={() => handleGroupSelect(groupe)}
-            >
-              <div className="p-6">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className={`w-16 h-16 bg-gradient-to-br ${groupe.avatarColor} rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg`}>
-                    {groupe.name.charAt(0)}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-gray-800 mb-1">{groupe.name}</h3>
-                    <p className="text-gray-600 text-sm">{groupe.description}</p>
-                  </div>
-                </div>
+        {/* États de chargement et d'erreur */}
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-12">
+            <Loader className="w-8 h-8 animate-spin text-blue-500 mb-4" />
+            <p className="text-gray-600">Chargement de vos groupes...</p>
+          </div>
+        )}
 
-                <div className="flex items-center gap-2 mb-4">
-                  <Users size={16} className="text-gray-500" />
-                  <span className="text-sm text-gray-600">{groupe.members} membres</span>
-                </div>
-
-                <button className={`w-full bg-gradient-to-r ${groupe.avatarColor} text-white font-semibold py-3 rounded-xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg`}>
-                  <MessageCircle size={16} />
-                  <span>Rejoindre la discussion</span>
-                </button>
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-6">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-6 h-6 text-red-500" />
+              <div>
+                <h3 className="text-red-800 font-semibold">Erreur de chargement</h3>
+                <p className="text-red-600 text-sm">{error}</p>
               </div>
             </div>
-          ))}
-        </div>
+            <button 
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+            >
+              Réessayer
+            </button>
+          </div>
+        )}
+
+        {/* Liste des groupes */}
+        {!loading && !error && (
+          <>
+            {groupes.length === 0 ? (
+              <div className="bg-white rounded-3xl shadow-xl p-12 text-center border border-gray-100">
+                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Users className="w-10 h-10 text-gray-400" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">Aucun groupe rejoint</h3>
+                <p className="text-gray-600 mb-6">
+                  Vous n'avez pas encore rejoint de groupe de discussion. 
+                  Participez à un défi pour être automatiquement ajouté au groupe correspondant !
+                </p>
+                <button 
+                  onClick={() => window.location.href = '/challenges'}
+                  className="px-6 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors font-semibold"
+                >
+                  Découvrir les défis
+                </button>
+              </div>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {groupes.map((groupe) => {
+                  const CategoryIcon = getCategoryIcon(groupe.category);
+                  return (
+                    <div
+                      key={groupe.id}
+                      className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 cursor-pointer"
+                      onClick={() => handleGroupSelect(groupe)}
+                    >
+                      <div className="p-6">
+                        <div className="flex items-center gap-4 mb-4">
+                          <div className={`w-16 h-16 bg-gradient-to-br ${groupe.avatarColor} rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg`}>
+                            <CategoryIcon size={24} />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-xl font-bold text-gray-800 mb-1">{groupe.name}</h3>
+                            <p className="text-gray-600 text-sm line-clamp-2">{groupe.description}</p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                {groupe.category}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 mb-4">
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              <Users size={14} className="text-gray-500" />
+                              <span className="text-gray-600">{groupe.members} membres</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Trophy size={14} className="text-yellow-500" />
+                              <span className="text-gray-600">{groupe.totalPoints} pts</span>
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Défi: {groupe.challengeTitle}
+                          </div>
+                        </div>
+
+                        <button className={`w-full bg-gradient-to-r ${groupe.avatarColor} text-white font-semibold py-3 rounded-xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg`}>
+                          <MessageCircle size={16} />
+                          <span>Rejoindre la discussion</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

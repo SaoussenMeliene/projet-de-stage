@@ -1,23 +1,12 @@
-const API_BASE_URL = "http://localhost:5000/api";
+import { api } from '../lib/axios';
 
 // Service pour gérer les groupes
 export const groupService = {
   // Récupérer tous les groupes de l'utilisateur
   async getUserGroups() {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${API_BASE_URL}/groups/user`, {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error("Erreur lors de la récupération des groupes");
-      }
-      
-      return await response.json();
+      const response = await api.get('/groups/user');
+      return response;
     } catch (error) {
       console.error("Erreur getUserGroups:", error);
       throw error;
@@ -27,19 +16,7 @@ export const groupService = {
   // Récupérer les détails d'un groupe spécifique
   async getGroupDetails(groupId) {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${API_BASE_URL}/groups/${groupId}`, {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error("Erreur lors de la récupération du groupe");
-      }
-      
-      return await response.json();
+      return await api.get(`/groups/${groupId}`);
     } catch (error) {
       console.error("Erreur getGroupDetails:", error);
       throw error;

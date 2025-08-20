@@ -170,80 +170,69 @@ const LoginPagePro = () => {
 
   // Gestion de la soumission avec détection automatique du rôle
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (isLocked) {
-      toast.error(`Compte temporairement verrouillé. Réessayez dans ${lockTimeRemaining}s`);
-      return;
+  if (isLocked) {
+    toast.error(`Compte temporairement verrouillé. Réessayez dans ${lockTimeRemaining}s`);
+    return;
+  }
+  if (!validation.email.isValid || !validation.password.isValid) {
+    toast.error("Veuillez corriger les erreurs avant de continuer.");
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    // (Optionnel, seulement pour l'UX)
+    const roleToUse = selectedRole === "auto"
+      ? detectUserRole(formData.email)
+      : selectedRole;
+
+    // ⛔ NE PAS mettre l’URL complète ici, on a déjà baseURL
+    // ⛔ Ne pas lire .data (interceptor renvoie déjà le JSON)
+    const { user, token } = await api.post("/auth/login", {
+      email: formData.email.trim(),
+      password: formData.password.trim(),
+      // expectedRole: roleToUse, // <- envoie-le seulement si ton backend l’accepte
+    });
+
+    if (user.role !== roleToUse && selectedRole !== "auto") {
+      toast.warning(`Rôle choisi: ${roleToUse}, mais votre compte est: ${user.role}`);
     }
 
-    if (!validation.email.isValid || !validation.password.isValid) {
-      toast.error("Veuillez corriger les erreurs avant de continuer.");
-      return;
+    // stockage du token + user
+    const storage = rememberMe ? localStorage : sessionStorage;
+    storage.setItem("token", token);
+    storage.setItem("user", JSON.stringify(user));
+    if (rememberMe) storage.setItem("rememberMe", "true");
+
+    setLoginAttempts(0);
+
+    const welcomeMessage = getWelcomeMessage(user.role, user.firstName || user.username);
+    toast.success(welcomeMessage);
+
+    const from = location.state?.from?.pathname;
+    const redirectPath = getRedirectPath(user.role, from);
+    setTimeout(() => navigate(redirectPath, { replace: true }), 1200);
+
+  } catch (err) {
+    const newAttempts = loginAttempts + 1;
+    setLoginAttempts(newAttempts);
+
+    if (newAttempts >= 3) {
+      setIsLocked(true);
+      setLockTimeRemaining(30);
+      toast.error("Trop de tentatives échouées. Compte verrouillé pendant 30 secondes.");
+    } else {
+      const msg = err?.response?.data?.msg || err?.message || "Erreur lors de la connexion";
+      toast.error(msg);
+      toast.warning(`Tentative ${newAttempts}/3. Attention au verrouillage !`);
     }
-
-    try {
-      setLoading(true);
-
-      // Déterminer le rôle à utiliser
-      let roleToUse;
-      if (selectedRole === "auto") {
-        roleToUse = detectUserRole(formData.email);
-      } else {
-        roleToUse = selectedRole;
-      }
-
-      const response = await api.post("http://localhost:5000/api/auth/login", {
-        ...formData,
-        expectedRole: roleToUse // Envoyer le rôle choisi pour validation côté serveur
-      });
-
-      const { user, token } = response.data;
-
-      // Vérification de cohérence du rôle
-      if (user.role !== roleToUse) {
-        toast.warning(`Rôle détecté: ${roleToUse}, mais votre compte est: ${user.role}`);
-      }
-
-      // Stockage du token et des données utilisateur
-      const storage = rememberMe ? localStorage : sessionStorage;
-      storage.setItem("token", token);
-      storage.setItem("user", JSON.stringify(user));
-      if (rememberMe) {
-        storage.setItem("rememberMe", "true");
-      }
-
-      // Reset des tentatives
-      setLoginAttempts(0);
-
-      // Message de bienvenue personnalisé
-      const welcomeMessage = getWelcomeMessage(user.role, user.firstName || user.username);
-      toast.success(welcomeMessage);
-
-      // Redirection selon le rôle
-      const from = location.state?.from?.pathname;
-      const redirectPath = getRedirectPath(user.role, from);
-
-      setTimeout(() => navigate(redirectPath, { replace: true }), 1500);
-
-    } catch (err) {
-      const newAttempts = loginAttempts + 1;
-      setLoginAttempts(newAttempts);
-
-      // Verrouillage après 3 tentatives
-      if (newAttempts >= 3) {
-        setIsLocked(true);
-        setLockTimeRemaining(30);
-        toast.error("Trop de tentatives échouées. Compte verrouillé pendant 30 secondes.");
-      } else {
-        const errorMessage = err.response?.data?.msg || "Erreur lors de la connexion";
-        toast.error(errorMessage);
-        toast.warning(`Tentative ${newAttempts}/3. Attention au verrouillage !`);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  } finally {
+    setLoading(false);
+  }
+};
 
 
 

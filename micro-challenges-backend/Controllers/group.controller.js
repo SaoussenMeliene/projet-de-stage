@@ -2,6 +2,7 @@ const Group = require("../Models/Group");
 const User = require("../Models/User");
 const Challenge = require("../Models/Challenge");
 const Participant = require("../Models/Participant");
+const Proof = require("../Models/Proof");
 
 // Récupérer tous les groupes de l'utilisateur connecté
 exports.getUserGroups = async (req, res) => {
@@ -231,7 +232,7 @@ exports.removeMemberFromGroup = async (req, res) => {
 exports.leaveGroup = async (req, res) => {
   try {
     const { groupId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     const group = await Group.findById(groupId);
     if (!group) {
@@ -239,19 +240,29 @@ exports.leaveGroup = async (req, res) => {
     }
 
     // Vérifier que l'utilisateur est membre du groupe
-    if (!group.members.includes(userId)) {
+    if (!group.members.some(member => member.toString() === userId.toString())) {
       return res.status(400).json({ msg: "Vous n'êtes pas membre de ce groupe" });
     }
 
     // Supprimer l'utilisateur du groupe
-    group.members = group.members.filter(member => member.toString() !== userId);
+    group.members = group.members.filter(member => member.toString() !== userId.toString());
     await group.save();
 
     // Supprimer sa participation au défi
-    await Participant.findOneAndDelete({ 
+    const participant = await Participant.findOneAndDelete({ 
       user: userId, 
       challenge: group.challenge 
     });
+
+    // Supprimer aussi les preuves liées à cette participation
+    if (participant) {
+      try {
+        await Proof.deleteMany({ participant: participant._id });
+        console.log(`🗑️ Preuves supprimées pour le participant ${participant._id}`);
+      } catch (e) {
+        console.warn(`⚠️ Impossible de supprimer les preuves du participant ${participant._id}:`, e.message);
+      }
+    }
 
     res.status(200).json({
       msg: "Vous avez quitté le groupe avec succès"
@@ -266,7 +277,7 @@ exports.leaveGroup = async (req, res) => {
 exports.getGroupStats = async (req, res) => {
   try {
     const { groupId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     const group = await Group.findById(groupId);
     if (!group) {

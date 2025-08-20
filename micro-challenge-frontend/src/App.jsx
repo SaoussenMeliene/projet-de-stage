@@ -23,6 +23,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import ErrorBoundary from "./components/ErrorBoundary";
 
+import ChallengeDetail from "./pages/ChallengeDetail";
 
 
 const App = () => {
@@ -38,7 +39,10 @@ const App = () => {
         <Route path="/dashboard" element={<Navigate to="/accueil" replace />} />
         <Route path="/accueil" element={<Accueil />} />
         <Route path="/mes-defis" element={<MesDefis />} />
-        <Route path="/defi/:defiId" element={<VoirDefi />} />
+        <Route path="/challenges/:id" element={<VoirDefi />} />
+        <Route path="/defi/:id" element={<VoirDefi />} />
+        <Route path="/defis/:defiId" element={<VoirDefi />} />
+
         <Route path="/calendrier" element={<CalendrierModern />} />
         <Route path="/mon-groupe" element={<MonGroupeSimple />} />
         <Route path="/recompenses" element={<Recompenses />} />
