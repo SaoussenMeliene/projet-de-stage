@@ -1,31 +1,40 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import HeaderDashboard from "../components/HeaderDashboard";
+import { fetchUserStats } from "../services/userStatsService";
 import {
-  User, Mail, Phone, Edit3, Save, X, Target, Award, Users,
-  Activity, CheckCircle, Camera, Calendar, Star, Zap, Trophy, Eye
+  User, Mail, Phone, Edit3, Save, X, Target, Users,
+  CheckCircle, Camera, Calendar, Star, Zap, Trophy
 } from "lucide-react";
+import { useTheme } from "../contexts/ThemeContext";
 
 /** ===== Helpers ===== **/
-const API_BASE =
-  (import.meta.env?.VITE_API_URL?.replace(/\/$/, "")) ||
-  "http://localhost:5000/api";
+// Utiliser le proxy Vite au lieu d'appels directs
+const API_BASE = "/api";
 
 function buildImageUrl(src) {
   if (!src) return null;
-  if (/^https?:\/\//i.test(src)) return src;                    // URL absolue
-  return src.startsWith("/") ? `http://localhost:5000${src}`    // /uploads/...
-                              : `http://localhost:5000/${src}`; // chemin relatif
+  if (/^https?:\/\//i.test(src)) return src;  // URL absolue
+  // Utiliser le proxy Vite pour les uploads aussi
+  return src.startsWith("/") ? src : `/${src}`;
 }
 /** ==================== **/
 
 const ProfilPage = () => {
+  const { isDark } = useTheme();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState("profile");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [userStats, setUserStats] = useState({
+    challengesCompleted: 0,
+    currentStreak: 0,
+    totalPoints: 0,
+    lastLoginDate: new Date(),
+    badges: []
+  });
 
   const [formData, setFormData] = useState({
     firstName: "", lastName: "", email: "", phone: "", bio: "", profileImage: ""
@@ -43,6 +52,34 @@ const ProfilPage = () => {
     }
     return null;
   }, [navigate]);
+
+  // Fonction pour charger les statistiques utilisateur
+  const loadUserStats = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      // Utilise le service pour récupérer les stats
+      const stats = await fetchUserStats(token);
+      
+      // Mappe les badges avec les icônes React
+      const badgesWithIcons = stats.badges.map(badge => ({
+        ...badge,
+        icon: badge.type === 'achievement' ? Trophy :
+              badge.type === 'points' ? Star :
+              badge.type === 'streak' ? Zap :
+              badge.type === 'milestone' ? CheckCircle :
+              Trophy // fallback
+      }));
+
+      setUserStats({
+        ...stats,
+        badges: badgesWithIcons
+      });
+    } catch (error) {
+      console.error("Erreur lors du chargement des statistiques:", error);
+    }
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -110,13 +147,16 @@ const ProfilPage = () => {
         // garder le format "brut" renvoyé par l'API en storage
         localStorage.setItem("user", JSON.stringify({ ...apiUser, role: preservedRole }));
         localStorage.setItem("lastTokenUsed", token);
+        
+        // Charger les statistiques utilisateur
+        await loadUserStats();
       } catch (e) {
         console.error("Erreur /users/me:", e);
       } finally {
         setLoading(false);
       }
     })();
-  }, [navigate, loadUserFromStorage]);
+  }, [navigate, loadUserFromStorage, loadUserStats]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -228,12 +268,14 @@ const ProfilPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className={`min-h-screen transition-colors duration-300 ${
+        isDark ? 'bg-gray-900' : 'bg-gray-50'
+      }`}>
         <HeaderDashboard />
         <div className="flex items-center justify-center h-96">
           <div className="flex flex-col items-center gap-4">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-            <p className="text-gray-600">Chargement du profil...</p>
+            <p className={isDark ? 'text-gray-300' : 'text-gray-600'}>Chargement du profil...</p>
           </div>
         </div>
       </div>
@@ -248,7 +290,9 @@ const ProfilPage = () => {
   const avatarUrl = buildImageUrl(user?.profileImage);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`min-h-screen transition-colors duration-300 ${
+      isDark ? 'bg-gray-900' : 'bg-gray-50'
+    }`}>
       <HeaderDashboard />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pt-8">
@@ -279,10 +323,6 @@ const ProfilPage = () => {
                   <Camera size={24} className="text-white" />
                   <input type="file" accept="image/*" onChange={handleProfileImageUpload} className="hidden" />
                 </label>
-
-                <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-green-500 rounded-full flex items-center justify-center border-4 border-white shadow-lg">
-                  <div className="w-4 h-4 bg-white rounded-full"></div>
-                </div>
               </div>
 
               <div className="text-center md:text-left flex-1">
@@ -291,21 +331,34 @@ const ProfilPage = () => {
                   <Mail size={18} />
                   {user?.email || "Email non renseigné"}
                 </p>
+                
+                {/* Statistiques rapides */}
+                <div className="flex items-center justify-center md:justify-start gap-6 text-sm mb-3">
+                  <div className="flex items-center gap-1" title="Nombre de défis complétés avec succès">
+                    <Target size={16} />
+                    <span className="font-medium">{userStats.challengesCompleted}</span>
+                    <span className="text-white/80">défis réussis</span>
+                  </div>
+                  <div className="flex items-center gap-1" title="Nombre de jours consécutifs avec au moins un défi complété">
+                    <Zap size={16} />
+                    <span className="font-medium">{userStats.currentStreak}</span>
+                    <span className="text-white/80">jours de suite</span>
+                  </div>
+                  <div className="flex items-center gap-1" title="Total des points gagnés en complétant des défis">
+                    <Trophy size={16} />
+                    <span className="font-medium">{userStats.totalPoints}</span>
+                    <span className="text-white/80">points gagnés</span>
+                  </div>
+                </div>
+                
                 <div className="flex items-center justify-center md:justify-start gap-4 text-sm">
                   <div className="flex items-center gap-1">
                     <Calendar size={16} />
                     <span>
                       Membre depuis{" "}
-                      {user?.createdAt
-                        ? new Date(user.createdAt).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })
-                        : "Date inconnue"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Eye size={16} />
-                    <span>
-                      Dernière connexion:{" "}
-                      {user?.updatedAt ? new Date(user.updatedAt).toLocaleDateString("fr-FR") : "Inconnue"}
+                      {(userStats.joinDate || user?.createdAt)
+                        ? new Date(userStats.joinDate || user.createdAt).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })
+                        : "récemment"}
                     </span>
                   </div>
                 </div>
@@ -314,27 +367,40 @@ const ProfilPage = () => {
               <div className="flex gap-3">
                 <button
                   onClick={() => setEditing((v) => !v)}
-                  className="flex items-center gap-2 px-6 py-3 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-all border border-white/30"
+                  className={`flex items-center gap-2 px-6 py-3 backdrop-blur-sm text-white rounded-xl transition-all border ${
+                    editing 
+                      ? "bg-red-500/30 border-red-300/50 hover:bg-red-500/40" 
+                      : "bg-white/20 border-white/30 hover:bg-white/30"
+                  }`}
                 >
                   <Edit3 size={18} />
-                  {editing ? "Annuler" : "Modifier le profil"}
+                  {editing ? "Annuler la modification" : "Modifier le profil"}
                 </button>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-3 justify-center md:justify-start">
-              <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full border border-white/30">
-                <Trophy className="text-yellow-300" size={16} />
-                <span className="text-sm font-medium">Expert Écologique</span>
-              </div>
-              <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full border border-white/30">
-                <Star className="text-yellow-300" size={16} />
-                <span className="text-sm font-medium">Top Contributeur</span>
-              </div>
-              <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full border border-white/30">
-                <Zap className="text-yellow-300" size={16} />
-                <span className="text-sm font-medium">Série de 7 jours</span>
-              </div>
+              {userStats.badges.map((badge) => (
+                <div 
+                  key={badge.id} 
+                  className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full border border-white/30 group relative"
+                  title={badge.description}
+                >
+                  <badge.icon className={badge.color} size={16} />
+                  <span className="text-sm font-medium">{badge.name}</span>
+                  
+                  {/* Tooltip au survol */}
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-black/80 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    {badge.description}
+                  </div>
+                </div>
+              ))}
+              
+              {userStats.badges.length === 0 && (
+                <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20">
+                  <span className="text-sm font-medium text-white/70">Aucun badge pour le moment</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -342,9 +408,7 @@ const ProfilPage = () => {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-8">
           <div className="flex border-b border-gray-100">
             {[
-              { id: "profile", label: "Profil", icon: User },
-              { id: "activity", label: "Activité", icon: Activity },
-              { id: "achievements", label: "Réalisations", icon: Award }
+              { id: "profile", label: "Profil", icon: User }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -462,17 +526,53 @@ const ProfilPage = () => {
           </div>
         )}
 
-        {activeTab === "activity" && (
-          <div className="space-y-8">
-            {/* … le reste inchangé … */}
+        {/* Section explicative des statistiques */}
+        {!editing && (
+          <div className="mt-8 p-6 bg-blue-50 rounded-2xl border border-blue-100">
+            <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center gap-2">
+              <Star size={20} />
+              Comprendre vos statistiques
+            </h3>
+            <div className="grid md:grid-cols-3 gap-4 text-sm">
+              <div className="flex items-start gap-3 p-3 bg-white rounded-xl">
+                <Target size={16} className="text-blue-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <div className="font-medium text-gray-900">Défis réussis</div>
+                  <div className="text-gray-600 mt-1">
+                    Le nombre total de défis que vous avez complétés avec succès. 
+                    Chaque défi terminé augmente ce compteur.
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-white rounded-xl">
+                <Zap size={16} className="text-yellow-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <div className="font-medium text-gray-900">Jours de suite</div>
+                  <div className="text-gray-600 mt-1">
+                    Votre "streak" : le nombre de jours consécutifs pendant lesquels 
+                    vous avez complété au moins un défi.
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-white rounded-xl">
+                <Trophy size={16} className="text-amber-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <div className="font-medium text-gray-900">Points gagnés</div>
+                  <div className="text-gray-600 mt-1">
+                    Le total de tous les points que vous avez accumulés. 
+                    Plus vous complétez de défis, plus vous gagnez de points !
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 p-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl text-center">
+              <div className="text-sm">
+                💡 <strong>Astuce :</strong> Complétez des défis régulièrement pour augmenter vos statistiques et maintenir votre streak !
+              </div>
+            </div>
           </div>
         )}
 
-        {activeTab === "achievements" && (
-          <div className="space-y-8">
-            {/* … le reste inchangé … */}
-          </div>
-        )}
       </div>
     </div>
   );

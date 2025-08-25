@@ -425,6 +425,8 @@ const MonGroupeSimple = () => {
               </button>
             </div>
 
+
+
             {/* Onglets ultra-compacts */}
             <div className="bg-yellow-400 px-3 py-1">
               <div className="flex gap-0">
@@ -585,28 +587,8 @@ const MonGroupeSimple = () => {
                     </div>
                   </div>
 
-                  {/* Indicateur et suggestions ultra-compacts */}
-                  <div className="mt-1 flex items-center justify-between">
-                    <div className="text-xs text-yellow-700 flex items-center gap-1">
-                      <div className="flex gap-0.5">
-                        <div className="w-0.5 h-0.5 bg-yellow-600 rounded-full animate-bounce"></div>
-                        <div className="w-0.5 h-0.5 bg-yellow-600 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                        <div className="w-0.5 h-0.5 bg-yellow-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                      </div>
-                      {(() => {
-                        const gid = selectedGroup?.id;
-                        const ids = (typingUsers[gid] || []).filter((id) => id !== String(currentUserId));
-                        if (!gid || ids.length === 0) return null;
-                        const names = ids.map((id) => {
-                          const m = selectedGroup?.membersList?.find((u) => String(u._id) === String(id));
-                          return m?.username || 'Quelqu\'un';
-                        });
-                        const label = names.length === 1 ? `${names[0]} écrit...` : `${names[0]} et ${names.length - 1} autre(s) écrivent...`;
-                        return <span>{label}</span>;
-                      })()}
-                    </div>
-
-                    {/* Suggestions en ligne */}
+                  {/* Suggestions en ligne */}
+                  <div className="mt-1 flex justify-end">
                     <div className="flex gap-1">
                       <button
                         onClick={() => setNewMessage("👍 Super !")}
@@ -649,20 +631,24 @@ const MonGroupeSimple = () => {
             )}
           </div>
 
+
+
           {/* Sidebar droite ultra-compacte */}
-          <div className="w-64 bg-gray-50 border-l border-gray-200 p-2 hidden lg:block">
-            <div className="mb-3">
-              <div className="flex items-center justify-between mb-2">
+          <div className="w-64 bg-gray-50 border-l border-gray-200 p-3 hidden lg:block flex flex-col h-full">
+            {/* Section Membres - Utilise plus d'espace */}
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-bold text-gray-800">Membres ({selectedGroup?.membersList?.length || selectedGroup?.members || 0})</h3>
               </div>
 
-              <div className="space-y-1 max-h-48 overflow-y-auto">
+              {/* Liste des membres qui s'étend selon l'espace disponible */}
+              <div className="space-y-2 flex-1 overflow-y-auto pr-1">
                 {Array.isArray(selectedGroup?.membersList) && selectedGroup.membersList.length > 0 ? (
                   selectedGroup.membersList.map((m) => {
                     const uname = m.username || m.email || 'Membre';
                     const initials = uname.slice(0,2).toUpperCase();
                     return (
-                      <div key={m._id} className="flex items-center justify-between p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors cursor-pointer">
+                      <div key={m._id} className="flex items-center justify-between p-2 bg-white rounded-lg hover:bg-blue-50 transition-colors cursor-pointer shadow-sm">
                         <div className="flex items-center gap-2">
                           <div className="relative">
                             <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-xs">
@@ -670,155 +656,171 @@ const MonGroupeSimple = () => {
                             </div>
                             <div className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${m.online ? 'bg-green-500' : 'bg-gray-300'}`} />
                           </div>
-                          <div>
-                            <span className="text-xs font-bold text-gray-800">{uname}</span>
+                          <div className="min-w-0 flex-1">
+                            <span className="text-xs font-bold text-gray-800 block truncate">{uname}</span>
                             <div className="text-[10px] text-gray-500">{m.online ? 'En ligne' : 'Hors ligne'}</div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 bg-yellow-100 px-2 py-0.5 rounded">
+                        <div className="flex items-center gap-1 bg-yellow-100 px-2 py-1 rounded-md">
                           <Trophy size={10} className="text-yellow-600" />
-                          <span className="text-[10px] font-bold text-yellow-800">{m.score || 0}pts</span>
+                          <span className="text-[10px] font-bold text-yellow-800">{m.score || 0}</span>
                         </div>
                       </div>
                     );
                   })
                 ) : (
-                  <div className="text-xs text-gray-500 p-2">Aucun membre</div>
+                  <div className="text-xs text-gray-500 p-3 text-center bg-white rounded-lg">Aucun membre</div>
                 )}
               </div>
             </div>
 
-            {/* Actions rapides ultra-compactes */}
-            <div className="mb-3">
-              <h3 className="text-sm font-bold text-gray-800 mb-2">Actions rapides</h3>
-              <div className="space-y-1">
+            {/* Actions rapides - Positionnées en bas */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <h3 className="text-sm font-bold text-gray-800 mb-3">Actions rapides</h3>
+              <div className="space-y-2">
                 <button 
                   onClick={handleQuickPoll}
-                  className="w-full bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-medium py-1.5 px-2 rounded text-xs flex items-center justify-center gap-1 transition-all duration-200 transform hover:scale-105"
+                  className="w-full bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-medium py-2.5 px-3 rounded-lg text-xs flex items-center justify-center gap-2 transition-all duration-200 transform hover:scale-105 shadow-sm"
                 >
-                  <Plus size={12} />
-                  Sondage
+                  <Plus size={14} />
+                  Nouveau Sondage
                 </button>
                 <button 
                   onClick={handleQuickPhoto}
-                  className="w-full bg-blue-400 hover:bg-blue-500 text-white font-medium py-1.5 px-2 rounded text-xs flex items-center justify-center gap-1 transition-all duration-200 transform hover:scale-105"
+                  className="w-full bg-blue-400 hover:bg-blue-500 text-white font-medium py-2.5 px-3 rounded-lg text-xs flex items-center justify-center gap-2 transition-all duration-200 transform hover:scale-105 shadow-sm"
                 >
-                  <Camera size={12} />
-                  Photo
+                  <Camera size={14} />
+                  Partager Photo
                 </button>
                 <button 
                   onClick={handleQuickEncouragement}
-                  className="w-full bg-pink-400 hover:bg-pink-500 text-white font-medium py-1.5 px-2 rounded text-xs flex items-center justify-center gap-1 transition-all duration-200 transform hover:scale-105"
+                  className="w-full bg-pink-400 hover:bg-pink-500 text-white font-medium py-2.5 px-3 rounded-lg text-xs flex items-center justify-center gap-2 transition-all duration-200 transform hover:scale-105 shadow-sm"
                 >
-                  <Heart size={12} />
+                  <Heart size={14} />
                   Encourager
                 </button>
               </div>
             </div>
 
-            {/* Statistiques ultra-compactes */}
-            <div className="bg-white rounded-lg p-2 border border-gray-200">
-              <h3 className="text-sm font-bold text-gray-800 mb-2 flex items-center gap-1">
-                <Trophy size={12} className="text-blue-500" />
-                Statistiques
-              </h3>
+          </div>
+        </div>
+        
+        {/* Section Statistiques en bas de la page */}
+        <div className="mt-8 px-4">
+          <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-8 border border-blue-200 shadow-xl">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-gray-800 mb-2 flex items-center justify-center gap-3">
+                <Trophy size={28} className="text-blue-500" />
+                Statistiques du Groupe
+              </h2>
+              <p className="text-gray-600">Performance et engagement de votre équipe</p>
+            </div>
 
-              <div className="space-y-2">
-                {/* Messages envoyés - compact */}
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <div className="flex items-center gap-1">
-                      <MessageCircle size={12} className="text-blue-500" />
-                      <span className="text-xs font-medium text-gray-700">Messages</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+              {/* Messages envoyés */}
+              <div className="bg-white rounded-2xl p-6 border border-blue-100 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-500 rounded-xl flex items-center justify-center">
+                      <MessageCircle size={20} className="text-white" />
                     </div>
-                    <div className="text-right">
-                      <span className="text-sm font-bold text-gray-900">247</span>
-                      <div className="text-xs text-green-600">+12</div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Messages</span>
+                      <div className="text-xs text-green-600 font-semibold">+12 récents</div>
                     </div>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                    <div className="bg-blue-500 h-1.5 rounded-full" style={{width: '82%'}}></div>
-                  </div>
-                  <div className="text-xs text-gray-500">Objectif: 300</div>
+                  <span className="text-3xl font-bold text-blue-600">247</span>
                 </div>
-
-                {/* Participation active */}
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <div className="flex items-center gap-2">
-                      <Users size={16} className="text-green-500" />
-                      <span className="text-sm font-semibold text-gray-700">Participation active</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-lg font-bold text-green-600">87%</span>
-                      <div className="text-xs text-green-600 font-medium">6/8 membres actifs</div>
-                    </div>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                    <div className="bg-gradient-to-r from-green-400 to-green-500 h-3 rounded-full transition-all duration-1000 ease-out" style={{width: '87%'}}></div>
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">Excellent niveau d'engagement</div>
+                <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden mb-3">
+                  <div className="bg-gradient-to-r from-blue-400 to-blue-500 h-3 rounded-full transition-all duration-500" style={{width: '82%'}}></div>
                 </div>
-
-                {/* Défis complétés */}
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <div className="flex items-center gap-2">
-                      <Target size={16} className="text-purple-500" />
-                      <span className="text-sm font-semibold text-gray-700">Défis complétés</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-lg font-bold text-purple-600">12/15</span>
-                      <div className="text-xs text-purple-600 font-medium">3 en cours</div>
-                    </div>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                    <div className="bg-gradient-to-r from-purple-400 to-purple-500 h-3 rounded-full transition-all duration-1000 ease-out" style={{width: '80%'}}></div>
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">3 défis restants ce mois</div>
-                </div>
-
-                {/* Points totaux */}
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <div className="flex items-center gap-2">
-                      <Trophy size={16} className="text-yellow-500" />
-                      <span className="text-sm font-semibold text-gray-700">Points totaux</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-lg font-bold text-yellow-600">1,450</span>
-                      <div className="text-xs text-yellow-600 font-medium">+85 cette semaine</div>
-                    </div>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                    <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 h-3 rounded-full transition-all duration-1000 ease-out" style={{width: '72%'}}></div>
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">Objectif: 2,000 points</div>
-                </div>
+                <div className="text-sm text-gray-600">Objectif: 300 messages</div>
               </div>
 
-              {/* Badge de performance */}
-              <div className="mt-6 p-4 bg-gradient-to-r from-green-100 via-blue-100 to-purple-100 rounded-xl border border-green-200">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
-                    <Trophy size={20} className="text-white" />
+              {/* Participation active */}
+              <div className="bg-white rounded-2xl p-6 border border-green-100 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-500 rounded-xl flex items-center justify-center">
+                      <Users size={20} className="text-white" />
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Participation</span>
+                      <div className="text-xs text-green-600 font-semibold">6/8 actifs</div>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <div className="text-sm font-bold text-green-800">Groupe Performant 🏆</div>
-                    <div className="text-xs text-green-600">Top 5% des groupes les plus actifs</div>
-                    <div className="text-xs text-gray-600 mt-1">Niveau: Expert • Prochain niveau: 550 points</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-green-700">#3</div>
-                    <div className="text-xs text-green-600">Classement</div>
-                  </div>
+                  <span className="text-3xl font-bold text-green-600">87%</span>
                 </div>
+                <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden mb-3">
+                  <div className="bg-gradient-to-r from-green-400 to-green-500 h-3 rounded-full transition-all duration-1000 ease-out" style={{width: '87%'}}></div>
+                </div>
+                <div className="text-sm text-green-600 font-medium">Excellent engagement</div>
               </div>
 
+              {/* Défis complétés */}
+              <div className="bg-white rounded-2xl p-6 border border-purple-100 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-purple-500 rounded-xl flex items-center justify-center">
+                      <Target size={20} className="text-white" />
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Défis</span>
+                      <div className="text-xs text-purple-600 font-semibold">3 en cours</div>
+                    </div>
+                  </div>
+                  <span className="text-3xl font-bold text-purple-600">12<span className="text-lg text-gray-500">/15</span></span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden mb-3">
+                  <div className="bg-gradient-to-r from-purple-400 to-purple-500 h-3 rounded-full transition-all duration-1000 ease-out" style={{width: '80%'}}></div>
+                </div>
+                <div className="text-sm text-purple-600 font-medium">3 défis restants ce mois</div>
+              </div>
 
+              {/* Points totaux */}
+              <div className="bg-white rounded-2xl p-6 border border-yellow-100 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-xl flex items-center justify-center">
+                      <Trophy size={20} className="text-white" />
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Points</span>
+                      <div className="text-xs text-yellow-600 font-semibold">+85 cette semaine</div>
+                    </div>
+                  </div>
+                  <span className="text-3xl font-bold text-yellow-600">1,450</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden mb-3">
+                  <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 h-3 rounded-full transition-all duration-1000 ease-out" style={{width: '72%'}}></div>
+                </div>
+                <div className="text-sm text-yellow-600 font-medium">Objectif: 2,000 points</div>
+              </div>
+            </div>
+
+            {/* Badge de performance - Plus grand et centré */}
+            <div className="bg-gradient-to-r from-green-100 via-blue-100 to-purple-100 rounded-2xl p-8 border border-green-200 shadow-inner">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-6">
+                  <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center shadow-2xl">
+                    <Trophy size={32} className="text-white" />
+                  </div>
+                  <div className="text-center md:text-left">
+                    <div className="text-2xl font-bold text-green-800 mb-2">Groupe Performant 🏆</div>
+                    <div className="text-base text-green-600 mb-1">Top 5% des groupes les plus actifs</div>
+                    <div className="text-sm text-gray-600">Niveau: Expert • Prochain niveau: 550 points</div>
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-5xl font-bold text-green-700 mb-1">#3</div>
+                  <div className="text-lg text-green-600 font-semibold">Classement</div>
+                  <div className="text-sm text-gray-500">sur 127 groupes</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+
       </div>
     );
   }

@@ -44,13 +44,16 @@ router.get("/profile", verifyToken, userCtrl.getUserProfile);
 // PUT: Mettre à jour le profil utilisateur
 router.put("/profile", verifyToken, userCtrl.updateUserProfile);
 
+// GET: Récupérer les statistiques de l'utilisateur connecté
+router.get("/me/stats", verifyToken, userCtrl.getUserStats);
+
 
 
 
 // PUT: Mettre à jour l'image de profil
 router.put("/profile-image", verifyToken, handleProfileImageUpload, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     if (!req.file) {
       return res.status(400).json({ msg: "Aucune image fournie" });

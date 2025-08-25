@@ -72,6 +72,7 @@ export default function DashboardChallengeModern() {
     "Créatif",
     "Sportif",
     "Éducatif",
+    "Bien-être",
   ];
 
   const sortLabelByKey = {

@@ -50,8 +50,12 @@ exports.getGroupDetails = async (req, res) => {
       return res.status(404).json({ msg: "Groupe introuvable" });
     }
 
-    // Vérifier que l'utilisateur est membre du groupe
-    if (!group.members.some(member => member._id.toString() === userId)) {
+    // Vérifier que l'utilisateur est membre du groupe OU admin
+    const currentUser = await User.findById(userId);
+    const isMember = group.members.some(member => member._id.toString() === userId);
+    const isAdmin = currentUser.role === 'admin';
+    
+    if (!isMember && !isAdmin) {
       return res.status(403).json({ msg: "Accès refusé à ce groupe" });
     }
 
@@ -127,8 +131,19 @@ exports.createGroup = async (req, res) => {
 exports.addMemberToGroup = async (req, res) => {
   try {
     const { groupId } = req.params;
-    const { userId: newMemberId } = req.body;
+    const { userId } = req.body;
+    const newMemberId = userId;
     const adminId = req.user.userId;
+
+    console.log('=== AddMemberToGroup ===');
+    console.log('GroupId:', groupId);
+    console.log('UserId à ajouter:', newMemberId);
+    console.log('Admin:', adminId);
+
+    // Valider les données
+    if (!newMemberId) {
+      return res.status(400).json({ msg: "ID utilisateur requis" });
+    }
 
     // Vérifier que l'utilisateur est admin
     const admin = await User.findById(adminId);
@@ -310,6 +325,159 @@ exports.getGroupStats = async (req, res) => {
     res.status(200).json(stats);
   } catch (error) {
     console.error("Erreur getGroupStats:", error);
+    res.status(500).json({ msg: "Erreur serveur", error: error.message });
+  }
+};
+
+// Récupérer tous les groupes (admin seulement)
+exports.getAllGroups = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    // Vérifier que l'utilisateur est admin
+    const currentUser = await User.findById(userId);
+    if (currentUser.role !== 'admin') {
+      return res.status(403).json({ msg: "Accès refusé - Admin requis" });
+    }
+
+    console.log(`=== GetAllGroups Admin ===`);
+    console.log(`Admin: ${currentUser.email}`);
+
+    const groups = await Group.find()
+      .populate('challenge', 'title description category startDate endDate')
+      .populate('members', 'username email firstName lastName')
+      .sort({ createdAt: -1 });
+
+    // Calculer les statistiques pour chaque groupe
+    const groupsWithStats = await Promise.all(groups.map(async (group) => {
+      const participants = await Participant.find({ challenge: group.challenge?._id });
+      const totalPoints = participants.reduce((sum, p) => sum + p.score, 0);
+      
+      return {
+        id: group._id,
+        name: group.name,
+        description: group.description,
+        challenge: group.challenge,
+        members: group.members,
+        createdAt: group.createdAt,
+        status: group.status || 'actif',
+        stats: {
+          totalMembers: group.members.length,
+          totalPoints,
+          activeParticipants: participants.filter(p => p.status === 'confirmé').length,
+          averageScore: participants.length > 0 ? 
+            Math.round(totalPoints / participants.length) : 0
+        }
+      };
+    }));
+
+    console.log(`✅ ${groupsWithStats.length} groupes récupérés`);
+
+    res.status(200).json(groupsWithStats);
+  } catch (error) {
+    console.error("Erreur getAllGroups:", error);
+    res.status(500).json({ msg: "Erreur serveur", error: error.message });
+  }
+};
+
+// Modifier un groupe (admin seulement)
+exports.updateGroup = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { name, description, status } = req.body;
+    const userId = req.user.userId;
+    
+    // Vérifier que l'utilisateur est admin
+    const currentUser = await User.findById(userId);
+    if (currentUser.role !== 'admin') {
+      return res.status(403).json({ msg: "Accès refusé - Admin requis" });
+    }
+
+    console.log(`=== UpdateGroup Admin ===`);
+    console.log(`Admin: ${currentUser.email}`);
+    console.log(`Groupe à modifier: ${groupId}`);
+
+    // Vérifier que le groupe existe
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ msg: "Groupe introuvable" });
+    }
+
+    // Valider les données
+    if (!name || !name.trim()) {
+      return res.status(400).json({ msg: "Le nom du groupe est requis" });
+    }
+
+    // Mettre à jour le groupe
+    const updateData = {
+      name: name.trim(),
+      description: description ? description.trim() : (group.description || ''),
+      status: status || group.status || 'actif'
+    };
+
+    const updatedGroup = await Group.findByIdAndUpdate(
+      groupId, 
+      updateData, 
+      { new: true }
+    ).populate('challenge', 'title description category')
+     .populate('members', 'username email firstName lastName');
+
+    console.log(`✅ Groupe "${updatedGroup.name}" modifié avec succès`);
+
+    res.status(200).json({ 
+      msg: "Groupe modifié avec succès", 
+      group: {
+        id: updatedGroup._id,
+        name: updatedGroup.name,
+        description: updatedGroup.description,
+        status: updatedGroup.status,
+        challenge: updatedGroup.challenge,
+        members: updatedGroup.members,
+        createdAt: updatedGroup.createdAt
+      }
+    });
+  } catch (error) {
+    console.error("Erreur updateGroup:", error);
+    res.status(500).json({ msg: "Erreur serveur", error: error.message });
+  }
+};
+
+// Supprimer un groupe (admin seulement)
+exports.deleteGroup = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const userId = req.user.userId;
+    
+    // Vérifier que l'utilisateur est admin
+    const currentUser = await User.findById(userId);
+    if (currentUser.role !== 'admin') {
+      return res.status(403).json({ msg: "Accès refusé - Admin requis" });
+    }
+
+    console.log(`=== DeleteGroup Admin ===`);
+    console.log(`Admin: ${currentUser.email}`);
+    console.log(`Groupe à supprimer: ${groupId}`);
+
+    // Vérifier que le groupe existe
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ msg: "Groupe introuvable" });
+    }
+
+    // Supprimer le groupe
+    await Group.findByIdAndDelete(groupId);
+
+    console.log(`✅ Groupe "${group.name}" supprimé avec succès`);
+
+    res.status(200).json({ 
+      msg: "Groupe supprimé avec succès", 
+      deletedGroup: {
+        id: group._id,
+        name: group.name
+      }
+    });
+  } catch (error) {
+    console.error("Erreur deleteGroup:", error);
     res.status(500).json({ msg: "Erreur serveur", error: error.message });
   }
 };

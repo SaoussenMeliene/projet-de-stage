@@ -6,7 +6,7 @@ const CreateChallengeModal = ({ isOpen, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     titre: '',
     description: '',
-    categorie: 'Environnement',
+    categorie: 'Écologique',
     difficulte: 'Facile',
     duree: '7',
     objectif: '',
@@ -45,11 +45,12 @@ const CreateChallengeModal = ({ isOpen, onClose, onSave }) => {
 
       // Mapper les catégories vers les valeurs attendues par l'API
       const categoryMap = {
-        'Environnement': 'Écologique',
-        'Sport': 'Sportif',
-        'Social': 'Solidaire',
-        'Bien-être': 'Solidaire',
-        'Créativité': 'Créatif'
+        'Écologique': 'Écologique',
+        'Sportif': 'Sportif',
+        'Solidaire': 'Solidaire',
+        'Bien-être': 'Bien-être',
+        'Créatif': 'Créatif',
+        'Éducatif': 'Éducatif'
       };
 
       // Créer le défi
@@ -79,7 +80,7 @@ const CreateChallengeModal = ({ isOpen, onClose, onSave }) => {
       setFormData({
         titre: '',
         description: '',
-        categorie: 'Environnement',
+        categorie: 'Écologique',
         difficulte: 'Facile',
         duree: '7',
         objectif: '',
@@ -261,11 +262,12 @@ const CreateChallengeModal = ({ isOpen, onClose, onSave }) => {
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="Environnement">Environnement</option>
-                <option value="Sport">Sport</option>
-                <option value="Social">Social</option>
+                <option value="Solidaire">Solidaire</option>
+                <option value="Écologique">Écologique</option>
+                <option value="Créatif">Créatif</option>
+                <option value="Sportif">Sportif</option>
+                <option value="Éducatif">Éducatif</option>
                 <option value="Bien-être">Bien-être</option>
-                <option value="Créativité">Créativité</option>
               </select>
             </div>
 

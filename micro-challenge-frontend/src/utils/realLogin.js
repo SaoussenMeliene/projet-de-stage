@@ -66,17 +66,4 @@ if (typeof window !== 'undefined') {
   window.testRealLogin = testRealLogin;
   window.testAdminLogin = testAdminLogin;
   window.checkUserData = checkUserData;
-  
-  console.log(`
-🔐 FONCTIONS DE CONNEXION RÉELLE :
-
-1. Test de connexion admin :
-   testAdminLogin()
-
-2. Test avec email/mot de passe :
-   testRealLogin('email@example.com', 'password')
-
-3. Vérifier les données actuelles :
-   checkUserData()
-  `);
 }

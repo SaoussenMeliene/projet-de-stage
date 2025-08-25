@@ -1,4 +1,6 @@
 const User = require("../Models/User");
+const Participant = require("../Models/Participant");
+const Challenge = require("../Models/Challenge");
 
 // Rechercher des utilisateurs (pour les ajouter aux groupes)
 exports.searchUsers = async (req, res) => {
@@ -110,6 +112,82 @@ exports.updateUserProfile = async (req, res) => {
     });
   } catch (error) {
     console.error("Erreur updateUserProfile:", error);
+    res.status(500).json({ msg: "Erreur serveur", error: error.message });
+  }
+};
+
+// Récupérer les statistiques de l'utilisateur connecté
+exports.getUserStats = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const user = await User.findById(userId).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ msg: "Utilisateur introuvable" });
+    }
+
+    // Calculer les participations confirmées (défis complétés)
+    const confirmedParticipations = await Participant.countDocuments({
+      user: userId,
+      status: "confirmé"
+    });
+
+    // Calculer les points totaux (somme des scores)
+    const pointsResult = await Participant.aggregate([
+      { $match: { user: userId, status: "confirmé" } },
+      { $group: { _id: null, totalPoints: { $sum: "$score" } } }
+    ]);
+    const totalPoints = pointsResult.length > 0 ? pointsResult[0].totalPoints : 0;
+
+    // Calculer la série actuelle (jours consécutifs d'activité)
+    const recentParticipations = await Participant.find({
+      user: userId,
+      status: "confirmé"
+    })
+    .sort({ joinedAt: -1 })
+    .limit(30); // Regarder les 30 dernières participations
+
+    let currentStreak = 0;
+    if (recentParticipations.length > 0) {
+      // Calculer les jours uniques d'activité récente
+      const activityDates = recentParticipations.map(p => {
+        const date = new Date(p.joinedAt);
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+      });
+      
+      // Supprimer les doublons et trier
+      const uniqueDates = [...new Set(activityDates)].sort((a, b) => b - a);
+      
+      // Calculer la série consécutive depuis aujourd'hui
+      const today = new Date();
+      const todayTime = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+      
+      for (let i = 0; i < uniqueDates.length; i++) {
+        const expectedDate = todayTime - (i * 24 * 60 * 60 * 1000); // i jours avant aujourd'hui
+        if (uniqueDates[i] === expectedDate) {
+          currentStreak = i + 1;
+        } else {
+          break;
+        }
+      }
+    }
+
+    // Préparer les données de statistiques
+    const stats = {
+      challengesCompleted: confirmedParticipations,
+      totalPoints: totalPoints,
+      currentStreak: currentStreak,
+      lastLoginDate: new Date(), // Dernière connexion = maintenant
+      joinDate: user.createdAt || new Date(), // Date réelle d'inscription
+      memberSince: user.createdAt || new Date(), // Date réelle d'inscription
+      userId: user._id,
+      username: user.username,
+      email: user.email
+    };
+
+    res.status(200).json(stats);
+  } catch (error) {
+    console.error("Erreur getUserStats:", error);
     res.status(500).json({ msg: "Erreur serveur", error: error.message });
   }
 };

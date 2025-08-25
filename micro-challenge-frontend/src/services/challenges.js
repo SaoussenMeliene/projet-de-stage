@@ -19,13 +19,18 @@ const normalizeParams = ({
 };
 
 export const list = (opts) =>
-  api.get("/challenges", { params: normalizeParams(opts) }).then((r) => r.data);
+  api.get("/challenges", { params: normalizeParams(opts) });
 
 export const stats = () =>
-  api.get("/challenges/stats").then((r) => r.data);
+  api.get("/challenges/stats");
 
 export const create = (payload) =>
-  api.post("/challenges", payload).then((r) => r.data);
+  api.post("/challenges", payload);
+
+export const update = (id, payload) =>
+  api.put(`/challenges/${id}`, payload);
+
 export const getById = (id) =>
-  api.get(`/challenges/${id}`).then((r) => r.data);
-export default { list, stats, create ,getById };
+  api.get(`/challenges/${id}`);
+
+export default { list, stats, create, update, getById };

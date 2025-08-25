@@ -20,13 +20,18 @@ import {
   MessageCircle,
   Heart,
   Shield,
-  FileText
+  FileText,
+  Moon,
+  Sun
 } from "lucide-react";
 import Logo from "./Logo";
 import UserAvatar from "./UserAvatar";
 import { useNotifications } from "../hooks/useNotifications";
+import { useTheme } from "../contexts/ThemeContext";
+
 
 const HeaderDashboard = () => {
+  const { isDark, toggleTheme } = useTheme();
   const [isScrolled, setIsScrolled] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -34,9 +39,7 @@ const HeaderDashboard = () => {
   const [user, setUser] = useState({
     name: "Chargement...",
     email: "chargement@satoripop.com",
-    role: "Membre actif",
-    points: 1250,
-    level: "Expert"
+    role: "Membre actif"
   });
   const location = useLocation();
 
@@ -119,9 +122,7 @@ const HeaderDashboard = () => {
             profileImage: userData.profileImage ?
               (userData.profileImage.startsWith('http') ? userData.profileImage : `http://localhost:5000${userData.profileImage}`) :
               null,
-            role: userData.role === 'admin' ? 'Administrateur' : 'Collaborateur',
-            points: 1250, // Valeur par défaut
-            level: userData.role === 'admin' ? 'Admin' : 'Expert'
+            role: userData.role === 'admin' ? 'Administrateur' : 'Collaborateur'
           });
           setUserRole(userData.role);
 
@@ -150,9 +151,7 @@ const HeaderDashboard = () => {
                   profileImage: serverUser.profileImage ?
                     (serverUser.profileImage.startsWith('http') ? serverUser.profileImage : `http://localhost:5000${serverUser.profileImage}`) :
                     null,
-                  role: serverUser.role === 'admin' ? 'Administrateur' : 'Collaborateur',
-                  points: 1250,
-                  level: serverUser.role === 'admin' ? 'Admin' : 'Expert'
+                  role: serverUser.role === 'admin' ? 'Administrateur' : 'Collaborateur'
                 });
                 setUserRole(serverUser.role);
               } else {
@@ -217,7 +216,9 @@ const HeaderDashboard = () => {
   };
 
   return (
-    <header className="w-full shadow-sm bg-white px-8 py-6 sticky top-0 z-50 transition-all duration-300">
+    <header className={`w-full shadow-sm px-8 py-6 sticky top-0 z-50 transition-all duration-300 ${
+      isDark ? 'bg-gray-800' : 'bg-white'
+    }`}>
       {/* Ligne 1 : Logo + Recherche + Icônes */}
       <div className="flex justify-between items-center w-full max-w-7xl mx-auto mb-6 relative">
         {/* Logo */}
@@ -227,9 +228,9 @@ const HeaderDashboard = () => {
             className="transition-all duration-300"
           />
           <span
-            className={`font-bold text-gray-600 transition-all duration-300 ${
-              isScrolled ? "text-lg" : "text-xl"
-            }`}
+            className={`font-bold transition-all duration-300 ${
+              isDark ? 'text-gray-200' : 'text-gray-600'
+            } ${isScrolled ? "text-lg" : "text-xl"}`}
           >
             Challenges
           </span>
@@ -238,27 +239,56 @@ const HeaderDashboard = () => {
         {/* Barre de recherche compacte */}
         <div className="flex-1 flex justify-center px-4">
           <div
-            className={`flex items-center bg-gray-100 rounded-full px-4 py-2 transition-all duration-300 hover:bg-gray-200 group
-                        ${isScrolled ? "w-[16rem]" : "w-[24rem]"}`}
+            className={`flex items-center rounded-full px-4 py-2 transition-all duration-300 group
+                        ${isScrolled ? "w-[16rem]" : "w-[24rem]"}
+                        ${isDark 
+                          ? 'bg-gray-700 hover:bg-gray-600' 
+                          : 'bg-gray-100 hover:bg-gray-200'
+                        }`}
           >
-            <Search className="text-gray-500 mr-2 group-hover:text-gray-700 transition-colors duration-200" size={16} />
+            <Search className={`mr-2 transition-colors duration-200 ${
+              isDark 
+                ? 'text-gray-400 group-hover:text-gray-200' 
+                : 'text-gray-500 group-hover:text-gray-700'
+            }`} size={16} />
             <input
               type="text"
               placeholder="Rechercher..."
-              className="bg-transparent outline-none w-full placeholder-gray-500 text-gray-700 text-sm"
+              className={`bg-transparent outline-none w-full text-sm ${
+                isDark 
+                  ? 'placeholder-gray-400 text-gray-200' 
+                  : 'placeholder-gray-500 text-gray-700'
+              }`}
             />
           </div>
         </div>
 
         {/* Icônes à droite */}
         <div className="flex items-center gap-4 flex-shrink-0">
+          {/* Bouton basculer thème */}
+          <button
+            onClick={toggleTheme}
+            className={`p-2 rounded-full cursor-pointer transition-all duration-200 hover:scale-105 ${
+              isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+            }`}
+            title={isDark ? 'Mode clair' : 'Mode sombre'}
+          >
+            {isDark ? (
+              <Sun className="text-yellow-400" size={20} />
+            ) : (
+              <Moon className="text-gray-700" size={20} />
+            )}
+          </button>
+
           {/* Notifications */}
           <div className="relative notification-dropdown">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 rounded-full cursor-pointer hover:bg-gray-100 transition-all duration-200 hover:scale-105"
+              className={`relative p-2 rounded-full cursor-pointer transition-all duration-200 hover:scale-105 ${
+                isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+              }`}
             >
-              <Bell className="text-gray-700" size={20} />
+              <Bell className={isDark ? 'text-gray-300' : 'text-gray-700'} size={20} />
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full animate-pulse min-w-[20px] text-center">
                   {unreadCount}
@@ -268,15 +298,25 @@ const HeaderDashboard = () => {
 
             {/* Dropdown des notifications */}
             {showNotifications && (
-              <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 max-h-96 overflow-hidden">
+              <div className={`absolute right-0 top-full mt-2 w-80 rounded-2xl shadow-2xl z-50 max-h-96 overflow-hidden ${
+                isDark 
+                  ? 'bg-gray-800 border border-gray-600' 
+                  : 'bg-white border border-gray-100'
+              }`}>
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-100">
-                  <h3 className="font-semibold text-gray-800">Notifications</h3>
+                <div className={`flex items-center justify-between p-4 border-b ${
+                  isDark ? 'border-gray-600' : 'border-gray-100'
+                }`}>
+                  <h3 className={`font-semibold ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
+                    Notifications
+                  </h3>
                   <button
                     onClick={() => setShowNotifications(false)}
-                    className="p-1 hover:bg-gray-100 rounded-full transition-colors duration-200"
+                    className={`p-1 rounded-full transition-colors duration-200 ${
+                      isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                    }`}
                   >
-                    <X size={16} className="text-gray-500" />
+                    <X size={16} className={isDark ? 'text-gray-400' : 'text-gray-500'} />
                   </button>
                 </div>
 
@@ -357,7 +397,9 @@ const HeaderDashboard = () => {
           <div className="relative user-menu-dropdown">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 transition-all duration-200 hover:scale-105"
+              className={`flex items-center gap-2 p-1 rounded-full transition-all duration-200 hover:scale-105 ${
+                isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+              }`}
             >
               <UserAvatar
                 name={user.name}
@@ -366,12 +408,16 @@ const HeaderDashboard = () => {
                 size="md"
                 showBorder={true}
               />
-              <ChevronDown size={16} className={`text-gray-500 transition-transform duration-200 ${showUserMenu ? 'rotate-180' : ''}`} />
+              <ChevronDown size={16} className={`transition-transform duration-200 ${
+                isDark ? 'text-gray-400' : 'text-gray-500'
+              } ${showUserMenu ? 'rotate-180' : ''}`} />
             </button>
 
             {/* Dropdown du menu utilisateur */}
             {showUserMenu && (
-              <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden">
+              <div className={`absolute right-0 top-full mt-2 w-72 rounded-2xl shadow-2xl z-50 overflow-hidden ${
+                isDark ? 'bg-gray-800 border border-gray-600' : 'bg-white border border-gray-100'
+              }`}>
                 {/* Profil utilisateur */}
                 <div className="p-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white">
                   <div className="flex items-center gap-3">
@@ -386,14 +432,6 @@ const HeaderDashboard = () => {
                     <div className="flex-1">
                       <h3 className="font-semibold">{user.name}</h3>
                       <p className="text-blue-100 text-sm">{user.email}</p>
-                      <div className="flex items-center gap-4 mt-1">
-                        <span className="text-xs bg-white/20 px-2 py-1 rounded-full">
-                          {user.level}
-                        </span>
-                        <span className="text-xs">
-                          {user.points} points
-                        </span>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -402,17 +440,25 @@ const HeaderDashboard = () => {
                 <div className="p-2">
                   <Link
                     to="/profil"
-                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors duration-200 text-gray-700"
+                    className={`flex items-center gap-3 p-3 rounded-xl transition-colors duration-200 ${
+                      isDark 
+                        ? 'hover:bg-gray-700 text-gray-200' 
+                        : 'hover:bg-gray-50 text-gray-700'
+                    }`}
                   >
-                    <User size={18} className="text-gray-500" />
+                    <User size={18} className={isDark ? 'text-gray-400' : 'text-gray-500'} />
                     <span className="font-medium">Mon profil</span>
                   </Link>
 
                   <Link
                     to="/parametres"
-                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors duration-200 text-gray-700"
+                    className={`flex items-center gap-3 p-3 rounded-xl transition-colors duration-200 ${
+                      isDark 
+                        ? 'hover:bg-gray-700 text-gray-200' 
+                        : 'hover:bg-gray-50 text-gray-700'
+                    }`}
                   >
-                    <Settings size={18} className="text-gray-500" />
+                    <Settings size={18} className={isDark ? 'text-gray-400' : 'text-gray-500'} />
                     <span className="font-medium">Paramètres</span>
                   </Link>
 
@@ -426,18 +472,22 @@ const HeaderDashboard = () => {
                   })() && (
                     <Link
                       to="/admin-dashboard"
-                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 transition-colors duration-200 text-red-700"
+                      className={`flex items-center gap-3 p-3 rounded-xl transition-colors duration-200 text-red-600 ${
+                        isDark ? 'hover:bg-red-900/20' : 'hover:bg-red-50'
+                      }`}
                     >
                       <Shield size={18} className="text-red-500" />
                       <span className="font-medium">Administration</span>
                     </Link>
                   )}
 
-                  <div className="border-t border-gray-100 my-2"></div>
+                  <div className={`border-t my-2 ${isDark ? 'border-gray-600' : 'border-gray-100'}`}></div>
 
                   <button
                     onClick={handleLogout}
-                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 transition-colors duration-200 text-red-600 w-full text-left"
+                    className={`flex items-center gap-3 p-3 rounded-xl transition-colors duration-200 text-red-600 w-full text-left ${
+                      isDark ? 'hover:bg-red-900/20' : 'hover:bg-red-50'
+                    }`}
                   >
                     <LogOut size={18} />
                     <span className="font-medium">Se déconnecter</span>
@@ -450,7 +500,9 @@ const HeaderDashboard = () => {
       </div>
 
       {/* Ligne 2 : Navigation */}
-     <nav className="flex justify-start gap-8 text-gray-600 mt-8 max-w-7xl mx-auto">
+     <nav className={`flex justify-start gap-8 mt-8 max-w-7xl mx-auto ${
+       isDark ? 'text-gray-300' : 'text-gray-600'
+     }`}>
   {[
     { icon: Home, label: "Accueil", path: "/accueil", color: "blue" },
     { icon: Target, label: "Mes Défis", path: "/mes-defis", color: "green" },
@@ -459,7 +511,14 @@ const HeaderDashboard = () => {
     { icon: Trophy, label: "Récompenses", path: "/recompenses", color: "yellow" }
   ].map((item, index) => {
     const isActive = location.pathname === item.path;
-    const colorClasses = {
+    const colorClasses = isDark ? {
+      blue: isActive ? "text-blue-400 bg-blue-900/30" : "hover:text-blue-400 hover:bg-blue-900/20",
+      green: isActive ? "text-green-400 bg-green-900/30" : "hover:text-green-400 hover:bg-green-900/20",
+      purple: isActive ? "text-purple-400 bg-purple-900/30" : "hover:text-purple-400 hover:bg-purple-900/20",
+      orange: isActive ? "text-orange-400 bg-orange-900/30" : "hover:text-orange-400 hover:bg-orange-900/20",
+      yellow: isActive ? "text-yellow-400 bg-yellow-900/30" : "hover:text-yellow-400 hover:bg-yellow-900/20",
+      red: isActive ? "text-red-400 bg-red-900/30" : "hover:text-red-400 hover:bg-red-900/20",
+    } : {
       blue: isActive ? "text-blue-600 bg-blue-50" : "hover:text-blue-600 hover:bg-blue-50",
       green: isActive ? "text-green-600 bg-green-50" : "hover:text-green-600 hover:bg-green-50",
       purple: isActive ? "text-purple-600 bg-purple-50" : "hover:text-purple-600 hover:bg-purple-50",

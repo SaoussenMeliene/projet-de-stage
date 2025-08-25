@@ -4,12 +4,18 @@ import HeaderDashboard from "../components/HeaderDashboard";
 import { Link } from 'react-router-dom';
 import DashboardStatsAdvanced from "../components/DashboardStatsAdvanced";
 import DefisRecentsModern from "../components/DefisRecentsModern";
+import { useTheme } from "../contexts/ThemeContext";
+
 
 
 
 const Accueil = () => {
+  const { isDark } = useTheme();
+  
   return (
-    <div className="min-h-screen bg-[#f0f9f6]">
+    <div className={`min-h-screen transition-colors duration-300 ${
+      isDark ? 'bg-gray-900' : 'bg-[#f0f9f6]'
+    }`}>
       <HeaderDashboard />
 
       {/* Hero */}

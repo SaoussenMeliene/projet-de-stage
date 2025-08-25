@@ -3,6 +3,9 @@ const router = express.Router();
 const groupCtrl = require("../Controllers/group.controller");
 const verifyToken = require("../Middleware/auth");
 
+// GET: Récupérer tous les groupes (admin seulement)
+router.get("/", verifyToken, groupCtrl.getAllGroups);
+
 // GET: Récupérer tous les groupes de l'utilisateur
 router.get("/user", verifyToken, groupCtrl.getUserGroups);
 
@@ -23,5 +26,11 @@ router.post("/:groupId/leave", verifyToken, groupCtrl.leaveGroup);
 
 // GET: Récupérer les statistiques d'un groupe
 router.get("/:groupId/stats", verifyToken, groupCtrl.getGroupStats);
+
+// PUT: Modifier un groupe (admin seulement)  
+router.put("/:groupId", verifyToken, groupCtrl.updateGroup);
+
+// DELETE: Supprimer un groupe (admin seulement)
+router.delete("/:groupId", verifyToken, groupCtrl.deleteGroup);
 
 module.exports = router;

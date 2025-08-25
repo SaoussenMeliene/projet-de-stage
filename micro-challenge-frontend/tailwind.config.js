@@ -6,6 +6,7 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class', // Active le mode sombre via la classe CSS
   theme: {
     extend: {
       fontFamily: {

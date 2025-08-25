@@ -4,6 +4,7 @@ const Challenge = require("../Models/Challenge");
 const Notification = require("../Models/Notification");
 const User = require("../Models/User");
 const Participant = require("../Models/Participant");
+const Group = require("../Models/Group");
 
 // Mappe les labels du front vers l'enum du modèle (Models/Challenge.js)
 function normalizeCategory(cat) {
@@ -15,6 +16,7 @@ function normalizeCategory(cat) {
     "Créatif": "créatif",
     "Sportif": "sportif", 
     "Éducatif": "éducatif",
+   
   };
   return m[cat] || cat;
 }
@@ -285,11 +287,185 @@ async function leaveChallenge(req, res) {
   }
 }
 
+async function updateChallenge(req, res) {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ msg: "ID invalide" });
+    }
+
+    const body = req.body || {};
+    const updateFields = {};
+
+    console.log("=== UpdateChallenge Admin ===");
+    console.log("Body reçu:", body);
+
+    // IMPORTANT: AUCUN champ n'est obligatoire pour la modification admin
+    // L'admin peut modifier seulement les champs qu'il souhaite
+    if (body.title !== undefined && body.title !== null) {
+      updateFields.title = String(body.title).trim();
+      console.log("Titre à modifier:", updateFields.title);
+    }
+    if (body.description !== undefined && body.description !== null) {
+      updateFields.description = String(body.description);
+      console.log("Description à modifier:", updateFields.description);
+    }
+    if (body.category !== undefined && body.category !== null) {
+      const cat = normalizeCategory(body.category);
+      if (cat) {
+        updateFields.category = cat;
+        console.log("Catégorie à modifier:", updateFields.category);
+      }
+    }
+    if (body.tags !== undefined) {
+      updateFields.tags = Array.isArray(body.tags) ? body.tags : [];
+      console.log("Tags à modifier:", updateFields.tags);
+    }
+    if (body.startDate !== undefined && body.startDate !== null) {
+      updateFields.startDate = new Date(body.startDate);
+      console.log("Date début à modifier:", updateFields.startDate);
+    }
+    if (body.endDate !== undefined && body.endDate !== null) {
+      updateFields.endDate = new Date(body.endDate);
+      console.log("Date fin à modifier:", updateFields.endDate);
+    }
+    if (body.image !== undefined) {
+      updateFields.image = body.image;
+      updateFields.coverImage = body.image;
+      console.log("Image à modifier:", updateFields.image);
+    }
+    if (body.coverImage !== undefined) {
+      updateFields.coverImage = body.coverImage;
+      if (!body.image) updateFields.image = body.coverImage;
+      console.log("CoverImage à modifier:", updateFields.coverImage);
+    }
+    if (body.rewardPoints !== undefined) {
+      updateFields.rewardPoints = Number(body.rewardPoints || 0);
+      console.log("Points à modifier:", updateFields.rewardPoints);
+    }
+    if (body.tasks !== undefined) {
+      updateFields.tasks = Array.isArray(body.tasks) ? body.tasks : [];
+      console.log("Tâches à modifier:", updateFields.tasks);
+    }
+
+    console.log("Champs à mettre à jour:", updateFields);
+
+    // Si aucun champ à mettre à jour, on retourne le défi tel qu'il est
+    if (Object.keys(updateFields).length === 0) {
+      console.log("Aucun champ à mettre à jour");
+      const existingChallenge = await Challenge.findById(id).lean();
+      if (!existingChallenge) {
+        return res.status(404).json({ msg: "Défi introuvable" });
+      }
+      return res.json({ 
+        item: existingChallenge,
+        msg: "Aucune modification effectuée (aucun champ fourni)"
+      });
+    }
+
+    // Vérifier que le défi existe
+    const existingChallenge = await Challenge.findById(id);
+    if (!existingChallenge) {
+      return res.status(404).json({ msg: "Défi introuvable" });
+    }
+
+    // Mise à jour directe MongoDB sans validation Mongoose
+    // Ceci ignore TOUS les validateurs, y compris les champs required
+    const db = mongoose.connection.db;
+    const result = await db.collection('challenges').findOneAndUpdate(
+      { _id: new mongoose.Types.ObjectId(id) },
+      { $set: updateFields },
+      { returnDocument: 'after' }
+    );
+
+    if (!result) {
+      return res.status(404).json({ msg: "Défi introuvable lors de la mise à jour" });
+    }
+
+    console.log("Modification réussie:", result);
+
+    res.json({ 
+      item: result,
+      msg: "Défi mis à jour avec succès"
+    });
+
+  } catch (err) {
+    console.error("updateChallenge error:", err);
+    res.status(500).json({ msg: "Erreur serveur lors de la modification." });
+  }
+}
+
+// Fonction pour supprimer un défi (admin seulement)
+async function deleteChallenge(req, res) {
+  try {
+    const { id } = req.params;
+
+    // Vérifier que l'ID est valide
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ msg: "ID de défi invalide" });
+    }
+
+    console.log(`=== DeleteChallenge Admin ===`);
+    console.log(`ID à supprimer: ${id}`);
+
+    // Vérifier que le défi existe
+    const existingChallenge = await Challenge.findById(id);
+    if (!existingChallenge) {
+      return res.status(404).json({ msg: "Défi introuvable" });
+    }
+
+    console.log(`Défi trouvé: "${existingChallenge.title}"`);
+
+    // Supprimer toutes les données liées au défi
+    console.log("Suppression des données liées...");
+    
+    // 1. Supprimer tous les participants du défi
+    const participantsDeleted = await Participant.deleteMany({ challenge: id });
+    console.log(`Participants supprimés: ${participantsDeleted.deletedCount}`);
+
+    // 2. Supprimer toutes les preuves du défi
+    const preuveModels = ['Proof']; // Ajouter d'autres modèles de preuve si nécessaire
+    for (const modelName of preuveModels) {
+      try {
+        const Model = mongoose.model(modelName);
+        const proofsDeleted = await Model.deleteMany({ challenge: id });
+        console.log(`${modelName} supprimées: ${proofsDeleted.deletedCount}`);
+      } catch (err) {
+        // Modèle n'existe pas, continuer
+        console.log(`Modèle ${modelName} non trouvé, ignoré`);
+      }
+    }
+
+    // 3. Supprimer les groupes liés au défi (si ils existent)
+    const groupsDeleted = await Group.deleteMany({ challenge: id });
+    console.log(`Groupes supprimés: ${groupsDeleted.deletedCount}`);
+
+    // 4. Enfin, supprimer le défi lui-même
+    await Challenge.findByIdAndDelete(id);
+    console.log("Défi supprimé avec succès");
+
+    res.json({ 
+      msg: "Défi supprimé avec succès",
+      deleted: {
+        challenge: existingChallenge.title,
+        participants: participantsDeleted.deletedCount,
+        groups: groupsDeleted.deletedCount
+      }
+    });
+
+  } catch (err) {
+    console.error("deleteChallenge error:", err);
+    res.status(500).json({ msg: "Erreur serveur lors de la suppression du défi" });
+  }
+}
+
 module.exports = {
   listChallenges,
   getChallengeStats,
   getChallengeById,
   createChallenge,
+  updateChallenge,
+  deleteChallenge,
   joinChallenge,
   leaveChallenge,
 };

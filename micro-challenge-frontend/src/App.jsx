@@ -24,6 +24,7 @@ import ResetPassword from "./pages/ResetPassword";
 import ErrorBoundary from "./components/ErrorBoundary";
 
 import ChallengeDetail from "./pages/ChallengeDetail";
+import EditChallengePage from "./pages/EditChallengePage";
 
 
 const App = () => {
@@ -52,6 +53,11 @@ const App = () => {
         <Route path="/admin-dashboard" element={
           <ErrorBoundary>
             <AdminDashboardNew />
+          </ErrorBoundary>
+        } />
+        <Route path="/admin/challenges/:id/edit" element={
+          <ErrorBoundary>
+            <EditChallengePage />
           </ErrorBoundary>
         } />
         <Route path="/forgot-password" element={<ForgotPassword />} />

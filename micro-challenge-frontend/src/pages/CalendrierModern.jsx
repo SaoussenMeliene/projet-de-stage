@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import HeaderDashboard from "../components/HeaderDashboard";
 import {
   Calendar as CalendarIcon,
@@ -19,100 +20,439 @@ import {
   BookOpen,
   Star,
   ArrowRight,
-  Eye
+  Eye,
+  CheckCircle,
+  AlertCircle,
+  Play,
+  UserCheck,
+  Calendar
 } from "lucide-react";
 
 const CalendrierModern = () => {
-  const [date] = useState(new Date());
+  const navigate = useNavigate();
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [isVisible, setIsVisible] = useState(false);
+  const [challenges, setChallenges] = useState([]);
+  const [userParticipations, setUserParticipations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [calendarStats, setCalendarStats] = useState({});
+  const [, setSelectedDate] = useState(null);
+  const [filterCategory, setFilterCategory] = useState('all');
 
   useEffect(() => {
     setIsVisible(true);
-  }, []);
+    fetchCalendarData();
+  }, [currentDate]);
 
-  // Statistiques du calendrier
-  const calendarStats = [
+  // Récupérer toutes les données du calendrier
+  const fetchCalendarData = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      console.log('🔄 Récupération des données du calendrier...');
+      
+      // Récupérer les défis
+      let challengesData = [];
+      try {
+        const challengesResponse = await fetch('/api/challenges');
+        if (challengesResponse.ok) {
+          const challengesResult = await challengesResponse.json();
+          challengesData = challengesResult?.challenges || [];
+          console.log('📊 Défis récupérés:', challengesData.length);
+        }
+      } catch (challengeError) {
+        console.log('ℹ️ Impossible de récupérer les défis via API:', challengeError.message);
+      }
+
+      // Récupérer les participations de l'utilisateur si connecté
+      let participationsData = [];
+      if (token) {
+        try {
+          const participationsResponse = await fetch('/api/participants/my-participations', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          if (participationsResponse.ok) {
+            const participationsResult = await participationsResponse.json();
+            participationsData = participationsResult?.participations || [];
+            console.log('👤 Participations utilisateur récupérées:', participationsData.length);
+          }
+        } catch (participationError) {
+          console.log('ℹ️ Impossible de récupérer les participations utilisateur:', participationError.message);
+        }
+      }
+
+      // Si aucune donnée réelle, créer des données de démonstration
+      if (challengesData.length === 0) {
+        console.log('🎭 Création de données de démonstration pour le calendrier');
+        challengesData = generateDemoCalendarData();
+      }
+
+      // Calculer les statistiques
+      const stats = calculateCalendarStats(challengesData, participationsData);
+      
+      setChallenges(challengesData);
+      setUserParticipations(participationsData);
+      setCalendarStats(stats);
+      
+      console.log('✅ Données du calendrier chargées:', {
+        challenges: challengesData.length,
+        participations: participationsData.length,
+        stats
+      });
+
+    } catch (error) {
+      console.error('❌ Erreur lors de la récupération des données du calendrier:', error);
+      // Données par défaut en cas d'erreur
+      setChallenges(generateDemoCalendarData());
+      setUserParticipations([]);
+      setCalendarStats({});
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Générer des données de démonstration
+  const generateDemoCalendarData = () => {
+    const today = new Date();
+    const thisMonth = today.getMonth();
+    const thisYear = today.getFullYear();
+    
+    return [
+      {
+        _id: 'demo-cal-1',
+        title: 'Défi Recyclage Intelligent',
+        description: 'Apprenez les bonnes pratiques de tri et de recyclage',
+        category: 'Environnement',
+        startDate: new Date(thisYear, thisMonth, 15),
+        endDate: new Date(thisYear, thisMonth, 22),
+        maxParticipants: 50,
+        currentParticipants: 34,
+        difficulty: 'Facile',
+        points: 200,
+        status: 'active'
+      },
+      {
+        _id: 'demo-cal-2',
+        title: 'Challenge Sport Quotidien',
+        description: '30 minutes d\'activité physique par jour',
+        category: 'Bien-être',
+        startDate: new Date(thisYear, thisMonth, 20),
+        endDate: new Date(thisYear, thisMonth, 27),
+        maxParticipants: 100,
+        currentParticipants: 67,
+        difficulty: 'Moyen',
+        points: 150,
+        status: 'active'
+      },
+      {
+        _id: 'demo-cal-3',
+        title: 'Atelier Créatif Upcycling',
+        description: 'Transformez vos déchets en objets utiles',
+        category: 'Créativité',
+        startDate: new Date(thisYear, thisMonth, 25),
+        endDate: new Date(thisYear, thisMonth, 25),
+        maxParticipants: 25,
+        currentParticipants: 18,
+        difficulty: 'Facile',
+        points: 300,
+        status: 'upcoming'
+      },
+      {
+        _id: 'demo-cal-4',
+        title: 'Défi Solidaire Entraide',
+        description: 'Aidez votre communauté locale',
+        category: 'Solidaire',
+        startDate: new Date(thisYear, thisMonth, 28),
+        endDate: new Date(thisYear, thisMonth + 1, 4),
+        maxParticipants: 75,
+        currentParticipants: 23,
+        difficulty: 'Moyen',
+        points: 250,
+        status: 'upcoming'
+      },
+      {
+        _id: 'demo-cal-5',
+        title: 'Challenge Zéro Déchet',
+        description: 'Réduisez vos déchets au maximum',
+        category: 'Environnement',
+        startDate: new Date(thisYear, thisMonth + 1, 1),
+        endDate: new Date(thisYear, thisMonth + 1, 8),
+        maxParticipants: 60,
+        currentParticipants: 12,
+        difficulty: 'Difficile',
+        points: 400,
+        status: 'upcoming'
+      }
+    ];
+  };
+
+  // Calculer les statistiques du calendrier
+  const calculateCalendarStats = (challengesData, participationsData) => {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    
+    // Filtrer les défis du mois actuel
+    const thisMonthChallenges = challengesData.filter(challenge => {
+      const startDate = new Date(challenge.startDate);
+      const endDate = new Date(challenge.endDate);
+      return (startDate.getMonth() === currentMonth && startDate.getFullYear() === currentYear) ||
+             (endDate.getMonth() === currentMonth && endDate.getFullYear() === currentYear) ||
+             (startDate <= new Date(currentYear, currentMonth, 1) && endDate >= new Date(currentYear, currentMonth + 1, 0));
+    });
+    
+    const activeChallenges = challengesData.filter(challenge => {
+      const startDate = new Date(challenge.startDate);
+      const endDate = new Date(challenge.endDate);
+      return today >= startDate && today <= endDate;
+    });
+    
+    const upcomingChallenges = challengesData.filter(challenge => {
+      const startDate = new Date(challenge.startDate);
+      return startDate > today;
+    });
+    
+    const completedChallenges = participationsData.filter(p => p.status === 'confirmé');
+    
+    // Calculer le total des participants
+    const totalParticipants = challengesData.reduce((sum, challenge) => {
+      return sum + (challenge.currentParticipants || 0);
+    }, 0);
+    
+    return {
+      thisMonthChallenges: thisMonthChallenges.length,
+      upcomingEvents: upcomingChallenges.length,
+      activeParticipants: totalParticipants,
+      completedChallenges: completedChallenges.length
+    };
+  };
+
+  // Fonctions utilitaires
+  const getCategoryIcon = (category) => {
+    switch (category?.toLowerCase()) {
+      case 'environnement':
+      case 'écologique':
+        return Leaf;
+      case 'bien-être':
+      case 'santé':
+        return Heart;
+      case 'sportif':
+      case 'sport':
+        return Target;
+      case 'créativité':
+      case 'créatif':
+      case 'art':
+        return Palette;
+      case 'solidaire':
+      case 'solidarité':
+        return Users;
+      case 'éducatif':
+      case 'éducation':
+        return BookOpen;
+      default:
+        return Target;
+    }
+  };
+
+  const getCategoryGradient = (category) => {
+    switch (category?.toLowerCase()) {
+      case 'environnement':
+      case 'écologique':
+        return 'from-green-500 to-emerald-600';
+      case 'bien-être':
+      case 'santé':
+        return 'from-pink-500 to-red-500';
+      case 'sportif':
+      case 'sport':
+        return 'from-orange-500 to-red-600';
+      case 'créativité':
+      case 'créatif':
+      case 'art':
+        return 'from-purple-500 to-indigo-600';
+      case 'solidaire':
+      case 'solidarité':
+        return 'from-cyan-500 to-blue-600';
+      case 'éducatif':
+      case 'éducation':
+        return 'from-blue-500 to-indigo-600';
+      default:
+        return 'from-gray-500 to-gray-600';
+    }
+  };
+
+  // Navigation du calendrier
+  const navigateMonth = (direction) => {
+    const newDate = new Date(currentDate);
+    newDate.setMonth(currentDate.getMonth() + direction);
+    setCurrentDate(newDate);
+  };
+
+  const goToToday = () => {
+    setCurrentDate(new Date());
+  };
+
+  // Obtenir les défis pour une date donnée
+  const getChallengesForDate = (date) => {
+    return challenges.filter(challenge => {
+      const startDate = new Date(challenge.startDate);
+      const endDate = new Date(challenge.endDate);
+      const targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), date);
+      
+      return targetDate >= startDate && targetDate <= endDate;
+    });
+  };
+
+  // Vérifier si l'utilisateur participe à un défi
+  const isUserParticipating = (challengeId) => {
+    return userParticipations.some(p => p.challenge?._id === challengeId || p.challenge?.id === challengeId);
+  };
+
+  // Gérer la participation à un défi
+  const handleJoinChallenge = async (challengeId) => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        alert('Veuillez vous connecter pour participer aux défis');
+        navigate('/login');
+        return;
+      }
+
+      console.log(`🎯 Tentative de participation au défi: ${challengeId}`);
+      
+      const response = await fetch(`/api/participants/join/${challengeId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        alert('🎉 Vous avez rejoint le défi avec succès !');
+        // Rafraîchir les données
+        fetchCalendarData();
+      } else {
+        alert('❌ Erreur lors de la participation au défi');
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors de la participation:', error);
+      alert('❌ Erreur lors de la participation au défi');
+    }
+  };
+
+  // Gérer la vue détail d'un défi
+  const handleViewChallenge = (challengeId) => {
+    navigate(`/defis/${challengeId}`);
+  };
+
+  // Statistiques dynamiques du calendrier
+  const dynamicCalendarStats = [
     { 
       icon: Target, 
-      value: 12, 
+      value: calendarStats.thisMonthChallenges || 0, 
       label: "Défis ce mois", 
       gradient: "from-blue-500 to-cyan-500",
-      change: "+3"
-    },
-    { 
-      icon: CalendarIcon, 
-      value: 5, 
-      label: "Événements à venir", 
-      gradient: "from-green-500 to-emerald-500",
       change: "+2"
     },
     { 
+      icon: CalendarIcon, 
+      value: calendarStats.upcomingEvents || 0, 
+      label: "Événements à venir", 
+      gradient: "from-green-500 to-emerald-500",
+      change: "+1"
+    },
+    { 
       icon: Users, 
-      value: 247, 
+      value: calendarStats.activeParticipants || 0, 
       label: "Participants actifs", 
       gradient: "from-purple-500 to-pink-500",
-      change: "+15"
+      change: "+12"
     },
     { 
       icon: Award, 
-      value: 8, 
+      value: calendarStats.completedChallenges || 0, 
       label: "Défis terminés", 
       gradient: "from-yellow-500 to-orange-500",
-      change: "+1"
+      change: "+3"
     }
   ];
 
-  // Événements modernes
-  const events = [
-    {
-      id: 1,
-      date: "25",
-      month: "JAN",
-      title: "Défi Recyclage - Semaine 3",
-      description: "Continuez votre parcours vers le zéro déchet",
-      category: "Écologique",
-      categoryIcon: Leaf,
-      categoryGradient: "from-green-500 to-emerald-600",
-      time: "09:00",
-      duration: "7 jours",
-      participants: 156,
-      location: "En ligne",
-      status: "En cours",
-      priority: "high"
-    },
-    {
-      id: 2,
-      date: "27",
-      month: "JAN",
-      title: "Atelier Compost Collectif",
-      description: "Apprenez les techniques de compostage urbain",
-      category: "Éducatif",
-      categoryIcon: BookOpen,
-      categoryGradient: "from-blue-500 to-indigo-600",
-      time: "14:00",
-      duration: "2 heures",
-      participants: 24,
-      location: "Jardin partagé",
-      status: "À venir",
-      priority: "medium"
-    },
-    {
-      id: 3,
-      date: "30",
-      month: "JAN",
-      title: "Challenge Zéro Déchet",
-      description: "Relevez le défi ultime du mode de vie sans déchet",
-      category: "Écologique",
-      categoryIcon: Leaf,
-      categoryGradient: "from-green-500 to-emerald-600",
-      time: "08:00",
-      duration: "1 semaine",
-      participants: 89,
-      location: "Partout",
-      status: "À venir",
-      priority: "high"
+  // Filtrer et transformer les défis pour l'affichage
+  const getUpcomingEvents = () => {
+    let filteredChallenges = challenges;
+    
+    // Filtrer par catégorie si sélectionnée
+    if (filterCategory !== 'all') {
+      filteredChallenges = challenges.filter(challenge => 
+        challenge.category?.toLowerCase() === filterCategory.toLowerCase()
+      );
     }
-  ];
+    
+    // Transformer les défis pour l'affichage
+    return filteredChallenges.slice(0, 6).map(challenge => {
+      const startDate = new Date(challenge.startDate);
+      const endDate = new Date(challenge.endDate);
+      const today = new Date();
+      
+      const duration = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+      const isActive = today >= startDate && today <= endDate;
+      const isUpcoming = startDate > today;
+      const isParticipating = isUserParticipating(challenge._id);
+      
+      return {
+        id: challenge._id,
+        date: startDate.getDate().toString(),
+        month: startDate.toLocaleDateString('fr-FR', { month: 'short' }).toUpperCase(),
+        title: challenge.title,
+        description: challenge.description,
+        category: challenge.category,
+        categoryIcon: getCategoryIcon(challenge.category),
+        categoryGradient: getCategoryGradient(challenge.category),
+        time: startDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        duration: duration === 1 ? '1 jour' : `${duration} jours`,
+        participants: challenge.currentParticipants || 0,
+        maxParticipants: challenge.maxParticipants || 100,
+        location: "En ligne",
+        status: isActive ? "En cours" : isUpcoming ? "À venir" : "Terminé",
+        priority: challenge.difficulty === 'Difficile' ? 'high' : challenge.difficulty === 'Moyen' ? 'medium' : 'low',
+        points: challenge.points || 100,
+        difficulty: challenge.difficulty || 'Facile',
+        isParticipating
+      };
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f0f9f6]">
+        <HeaderDashboard />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pt-8">
+          <div className="animate-pulse">
+            <div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-3xl p-8 mb-8">
+              <div className="h-8 bg-white/20 rounded w-1/3 mb-4"></div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="bg-white/10 rounded-2xl p-4 h-20"></div>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+              <div className="lg:col-span-3 bg-white rounded-3xl h-96"></div>
+              <div className="space-y-6">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="bg-white rounded-3xl h-32"></div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f0f9f6]">
@@ -150,7 +490,7 @@ const CalendrierModern = () => {
               
               {/* Statistiques en grille */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                {calendarStats.map((stat, index) => (
+                {dynamicCalendarStats.map((stat, index) => (
                   <div key={index} className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
                     <div className="flex items-center gap-3 mb-2">
                       <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
@@ -175,18 +515,27 @@ const CalendrierModern = () => {
             <div className="bg-gradient-to-r from-purple-500 to-indigo-600 p-6 text-white">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <button className="p-2 hover:bg-white/20 rounded-xl transition-colors duration-200">
+                  <button 
+                    onClick={() => navigateMonth(-1)}
+                    className="p-2 hover:bg-white/20 rounded-xl transition-colors duration-200"
+                  >
                     <ChevronLeft size={20} />
                   </button>
                   <h2 className="text-2xl font-bold">
-                    {date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+                    {currentDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
                   </h2>
-                  <button className="p-2 hover:bg-white/20 rounded-xl transition-colors duration-200">
+                  <button 
+                    onClick={() => navigateMonth(1)}
+                    className="p-2 hover:bg-white/20 rounded-xl transition-colors duration-200"
+                  >
                     <ChevronRight size={20} />
                   </button>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/30 transition-colors duration-200">
+                  <button 
+                    onClick={goToToday}
+                    className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/30 transition-colors duration-200"
+                  >
                     Aujourd'hui
                   </button>
                 </div>
@@ -214,38 +563,56 @@ const CalendrierModern = () => {
                 ))}
 
                 {/* Jours du mois actuel */}
-                {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => {
-                  const isToday = day === new Date().getDate();
-                  const hasEvent = [25, 27, 30].includes(day);
-                  const eventType = day === 25 ? 'green' : day === 27 ? 'blue' : day === 30 ? 'purple' : '';
+                {Array.from({ length: new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate() }, (_, i) => i + 1).map((day) => {
+                  const today = new Date();
+                  const isToday = day === today.getDate() && 
+                                 currentDate.getMonth() === today.getMonth() && 
+                                 currentDate.getFullYear() === today.getFullYear();
+                  
+                  const dayEvents = getChallengesForDate(day);
+                  const hasEvent = dayEvents.length > 0;
+                  const primaryEvent = dayEvents[0];
+                  const eventGradient = primaryEvent ? getCategoryGradient(primaryEvent.category) : '';
+                  const isParticipating = primaryEvent ? isUserParticipating(primaryEvent._id) : false;
                   
                   return (
                     <div
                       key={day}
+                      onClick={() => setSelectedDate(day)}
                       className={`aspect-square flex flex-col items-center justify-center text-sm font-medium rounded-xl transition-all duration-300 cursor-pointer relative group ${
                         isToday
                           ? 'bg-gradient-to-r from-yellow-400 to-orange-400 text-white shadow-lg transform scale-105'
                           : hasEvent
-                          ? eventType === 'green'
-                            ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-md hover:shadow-lg hover:scale-105'
-                            : eventType === 'blue'
-                            ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md hover:shadow-lg hover:scale-105'
-                            : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md hover:shadow-lg hover:scale-105'
+                          ? `bg-gradient-to-r ${eventGradient} text-white shadow-md hover:shadow-lg hover:scale-105`
                           : 'text-gray-700 hover:bg-gray-100 hover:scale-105'
                       }`}
                     >
                       <span className="text-base">{day}</span>
+                      
+                      {/* Indicateurs d'événements */}
                       {hasEvent && (
-                        <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2">
-                          <div className="w-1.5 h-1.5 bg-white/80 rounded-full"></div>
+                        <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 flex gap-1">
+                          {dayEvents.slice(0, 3).map((_, index) => (
+                            <div key={index} className="w-1.5 h-1.5 bg-white/80 rounded-full"></div>
+                          ))}
+                          {dayEvents.length > 3 && (
+                            <div className="text-xs font-bold text-white/90">+{dayEvents.length - 3}</div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Badge de participation */}
+                      {isParticipating && (
+                        <div className="absolute top-1 right-1">
+                          <UserCheck className="w-3 h-3 text-white/90" />
                         </div>
                       )}
                       
                       {/* Tooltip au hover */}
                       {hasEvent && (
                         <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
-                          <div className="bg-gray-900 text-white text-xs px-2 py-1 rounded-lg whitespace-nowrap">
-                            {day === 25 ? 'Défi Recyclage' : day === 27 ? 'Atelier Compost' : 'Challenge Zéro Déchet'}
+                          <div className="bg-gray-900 text-white text-xs px-2 py-1 rounded-lg whitespace-nowrap max-w-xs">
+                            {dayEvents.length === 1 ? primaryEvent.title : `${dayEvents.length} événements`}
                           </div>
                         </div>
                       )}
@@ -278,21 +645,58 @@ const CalendrierModern = () => {
               </div>
               
               <div className="space-y-3">
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-3 border border-green-200">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-green-700 font-medium text-sm">Défi en cours</span>
-                  </div>
-                  <p className="text-green-600 text-xs">Recyclage - Jour 3/7</p>
-                </div>
+                {/* Défis actifs aujourd'hui */}
+                {(() => {
+                  const today = new Date();
+                  const todayEvents = getChallengesForDate(today.getDate());
+                  const activeEvents = todayEvents.filter(challenge => {
+                    const startDate = new Date(challenge.startDate);
+                    const endDate = new Date(challenge.endDate);
+                    return today >= startDate && today <= endDate;
+                  });
+                  
+                  if (activeEvents.length > 0) {
+                    return activeEvents.slice(0, 2).map((challenge, index) => (
+                      <div key={challenge._id} className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-3 border border-green-200">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <span className="text-green-700 font-medium text-sm">Défi en cours</span>
+                        </div>
+                        <p className="text-green-600 text-xs">{challenge.title}</p>
+                      </div>
+                    ));
+                  }
+                  
+                  return (
+                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-3 border border-gray-200">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                        <span className="text-gray-600 font-medium text-sm">Aucun défi actif</span>
+                      </div>
+                      <p className="text-gray-500 text-xs">Consultez les prochains défis</p>
+                    </div>
+                  );
+                })()}
                 
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-200">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span className="text-blue-700 font-medium text-sm">Rappel</span>
-                  </div>
-                  <p className="text-blue-600 text-xs">Atelier compost - 14h00</p>
-                </div>
+                {/* Prochains événements */}
+                {(() => {
+                  const upcomingEvents = getUpcomingEvents().filter(event => event.status === 'À venir').slice(0, 1);
+                  
+                  if (upcomingEvents.length > 0) {
+                    const event = upcomingEvents[0];
+                    return (
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-200">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          <span className="text-blue-700 font-medium text-sm">Prochain événement</span>
+                        </div>
+                        <p className="text-blue-600 text-xs">{event.title} - {event.date} {event.month}</p>
+                      </div>
+                    );
+                  }
+                  
+                  return null;
+                })()}
               </div>
             </div>
 
@@ -348,15 +752,19 @@ const CalendrierModern = () => {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600 text-sm">Événements</span>
-                  <span className="font-semibold text-purple-600">12</span>
+                  <span className="font-semibold text-purple-600">{calendarStats.thisMonthChallenges || 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600 text-sm">Participants</span>
-                  <span className="font-semibold text-green-600">247</span>
+                  <span className="font-semibold text-green-600">{calendarStats.activeParticipants || 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600 text-sm">Défis actifs</span>
-                  <span className="font-semibold text-blue-600">8</span>
+                  <span className="text-gray-600 text-sm">À venir</span>
+                  <span className="font-semibold text-blue-600">{calendarStats.upcomingEvents || 0}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600 text-sm">Terminés</span>
+                  <span className="font-semibold text-yellow-600">{calendarStats.completedChallenges || 0}</span>
                 </div>
               </div>
             </div>
@@ -377,14 +785,33 @@ const CalendrierModern = () => {
                 </div>
               </div>
 
-              <button className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-600 hover:to-purple-600 transition-all duration-300 transform hover:scale-105 flex items-center gap-2">
-                <Eye size={18} />
-                <span>Voir tout</span>
-              </button>
+              <div className="flex items-center gap-3">
+                <select 
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="all">Toutes les catégories</option>
+                  <option value="solidaire">Solidaire</option>
+                  <option value="écologique">Écologique</option>
+                  <option value="créatif">Créatif</option>
+                  <option value="sportif">Sportif</option>
+                  <option value="éducatif">Éducatif</option>
+                  <option value="bien-être">Bien-être</option>
+                </select>
+                
+                <button 
+                  onClick={() => navigate('/mes-defis')}
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-600 hover:to-purple-600 transition-all duration-300 transform hover:scale-105 flex items-center gap-2"
+                >
+                  <Eye size={18} />
+                  <span>Voir tout</span>
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {events.map((event, index) => (
+              {getUpcomingEvents().map((event, index) => (
                 <div
                   key={event.id}
                   className="group bg-gradient-to-br from-gray-50 to-white rounded-2xl p-6 border border-gray-200 hover:shadow-xl transition-all duration-500 transform hover:-translate-y-2 hover:scale-105 cursor-pointer"
@@ -456,11 +883,55 @@ const CalendrierModern = () => {
                     </span>
                   </div>
 
-                  {/* Bouton d'action */}
-                  <button className={`w-full bg-gradient-to-r ${event.categoryGradient} text-white font-semibold py-3 rounded-xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2 group-hover:shadow-lg`}>
-                    <span>Voir détails</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
-                  </button>
+                  {/* Informations supplémentaires */}
+                  <div className="flex items-center justify-between mb-4 text-sm">
+                    <div className="flex items-center gap-1 text-gray-600">
+                      <Star className="w-4 h-4 text-yellow-500" />
+                      <span>{event.points} points</span>
+                    </div>
+                    <div className="text-gray-600">
+                      {event.participants}/{event.maxParticipants}
+                    </div>
+                  </div>
+
+                  {/* Boutons d'action */}
+                  <div className="space-y-2">
+                    {event.isParticipating ? (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewChallenge(event.id);
+                        }}
+                        className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold py-3 rounded-xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2 group-hover:shadow-lg"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Déjà inscrit</span>
+                      </button>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleJoinChallenge(event.id);
+                          }}
+                          className={`bg-gradient-to-r ${event.categoryGradient} text-white font-semibold py-2 rounded-xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-1`}
+                        >
+                          <Play className="w-4 h-4" />
+                          <span>Rejoindre</span>
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewChallenge(event.id);
+                          }}
+                          className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 rounded-xl transition-all duration-300 flex items-center justify-center gap-1"
+                        >
+                          <Eye className="w-4 h-4" />
+                          <span>Détails</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
