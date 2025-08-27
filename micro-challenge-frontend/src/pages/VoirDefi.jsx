@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import HeaderDashboard from "../components/HeaderDashboard";
 import SubmitProofModal from "../components/SubmitProofModal";
+import { useTheme } from "../contexts/ThemeContext";
 import {
   ArrowLeft, Calendar, Clock, Users, Target, Award, Heart, Share2,
   MessageCircle, CheckCircle, Play, Trophy, Leaf, Eye, ThumbsUp, Flag, Upload
@@ -61,6 +62,7 @@ export default function VoirDefi() {
   const params = useParams();
   const defiId = params.defiId || params.id; // Support pour différents noms de paramètres
   const navigate = useNavigate();
+  const { isDark } = useTheme();
   
   console.log("Params reçus:", params, "DefiId final:", defiId);
 
@@ -282,7 +284,9 @@ export default function VoirDefi() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className={`min-h-screen transition-colors duration-300 ${
+        isDark ? 'bg-gray-900' : 'bg-gray-50'
+      }`}>
         <HeaderDashboard />
         <div className="max-w-6xl mx-auto px-6 py-10 text-gray-500">Chargement…</div>
       </div>
@@ -291,7 +295,9 @@ export default function VoirDefi() {
 
   if (errMsg || !defi) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className={`min-h-screen transition-colors duration-300 ${
+        isDark ? 'bg-gray-900' : 'bg-gray-50'
+      }`}>
         <HeaderDashboard />
         <div className="max-w-4xl mx-auto px-6 py-10">
           <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-6">
@@ -313,7 +319,9 @@ export default function VoirDefi() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`min-h-screen transition-colors duration-300 ${
+      isDark ? 'bg-gray-900' : 'bg-gray-50'
+    }`}>
       <HeaderDashboard />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pt-8">
         <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-6">

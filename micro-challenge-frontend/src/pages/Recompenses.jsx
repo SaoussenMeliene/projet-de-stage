@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import HeaderDashboard from "../components/HeaderDashboard";
+import { useTheme } from "../contexts/ThemeContext";
 import {
   Trophy,
   Recycle,
@@ -34,6 +35,7 @@ const Recompenses = () => {
   const [claimedRewards, setClaimedRewards] = useState([]);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const { isDark } = useTheme();
 
   useEffect(() => {
     setIsVisible(true);
@@ -410,7 +412,9 @@ const Recompenses = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f0f9f6]">
+      <div className={`min-h-screen transition-colors duration-300 ${
+        isDark ? 'bg-gray-900' : 'bg-[#f0f9f6]'
+      }`}>
         <HeaderDashboard />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pt-8">
           <div className="animate-pulse">
@@ -435,7 +439,9 @@ const Recompenses = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f0f9f6]">
+    <div className={`min-h-screen transition-colors duration-300 ${
+      isDark ? 'bg-gray-900' : 'bg-[#f0f9f6]'
+    }`}>
       <HeaderDashboard />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pt-8">

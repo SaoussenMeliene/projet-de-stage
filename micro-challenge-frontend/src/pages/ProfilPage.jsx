@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import HeaderDashboard from "../components/HeaderDashboard";
+import UserAvatar from "../components/UserAvatar";
 import { fetchUserStats } from "../services/userStatsService";
 import {
-  User, Mail, Phone, Edit3, Save, X, Target, Users,
+  User, Mail, Phone, Edit3, Save, X, Users,
   CheckCircle, Camera, Calendar, Star, Zap, Trophy
 } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
@@ -266,6 +267,73 @@ const ProfilPage = () => {
     }
   };
 
+  const handleUseDefaultAvatar = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) { alert("Vous devez être connecté."); return; }
+
+      // Supprimer l'image de profil pour revenir à l'avatar par défaut
+      const response = await fetch(`${API_BASE}/users/profile-image`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data?.msg || "Erreur lors de la suppression");
+      }
+
+      // Mettre à jour l'état local
+      const newUser = { ...user, profileImage: null };
+      const newFormData = { ...formData, profileImage: "" };
+      setUser(newUser);
+      setFormData(newFormData);
+
+      // Mettre à jour localStorage
+      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+      localStorage.setItem("user", JSON.stringify({ ...storedUser, profileImage: null }));
+
+      alert("Avatar Admin par défaut restauré !");
+    } catch (error) {
+      console.error("Erreur lors de la restauration de l'avatar:", error);
+      alert(error.message || "Erreur lors de la restauration de l'avatar");
+    }
+  };
+
+  const handleRemoveProfileImage = async () => {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer votre image de profil ?")) return;
+    
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) { alert("Vous devez être connecté."); return; }
+
+      const response = await fetch(`${API_BASE}/users/profile-image`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data?.msg || "Erreur lors de la suppression");
+      }
+
+      // Mettre à jour l'état local
+      const newUser = { ...user, profileImage: null };
+      const newFormData = { ...formData, profileImage: "" };
+      setUser(newUser);
+      setFormData(newFormData);
+
+      // Mettre à jour localStorage
+      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+      localStorage.setItem("user", JSON.stringify({ ...storedUser, profileImage: null }));
+
+      alert("Image de profil supprimée avec succès !");
+    } catch (error) {
+      console.error("Erreur lors de la suppression:", error);
+      alert(error.message || "Erreur lors de la suppression de l'image");
+    }
+  };
+
   if (loading) {
     return (
       <div className={`min-h-screen transition-colors duration-300 ${
@@ -314,15 +382,42 @@ const ProfilPage = () => {
                       className="w-full h-full object-cover"
                       onError={(e) => { e.currentTarget.style.display = "none"; }}
                     />
+                  ) : (user?.email === 'admin@satoripop.com' || user?.name === 'Admin') ? (
+                    <div className="w-full h-full bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center text-4xl font-bold text-white relative">
+                      Ad
+                      <div className="absolute -top-1 -right-1 w-6 h-6 bg-green-500 border-2 border-white rounded-full"></div>
+                    </div>
                   ) : (
                     <User size={48} className="text-white/70" />
                   )}
                 </div>
 
-                <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                  <Camera size={24} className="text-white" />
-                  <input type="file" accept="image/*" onChange={handleProfileImageUpload} className="hidden" />
-                </label>
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-2">
+                    <label className="flex items-center justify-center p-2 bg-blue-500/80 rounded-full cursor-pointer hover:bg-blue-600/80 transition-colors">
+                      <Camera size={16} className="text-white" />
+                      <input type="file" accept="image/*" onChange={handleProfileImageUpload} className="hidden" />
+                    </label>
+                    {(user?.email === 'admin@satoripop.com' || user?.name === 'Admin') && avatarUrl && (
+                      <button 
+                        onClick={handleUseDefaultAvatar}
+                        className="flex items-center justify-center p-2 bg-amber-500/80 rounded-full cursor-pointer hover:bg-amber-600/80 transition-colors"
+                        title="Utiliser l'avatar Admin par défaut"
+                      >
+                        <span className="text-xs font-bold text-white">Ad</span>
+                      </button>
+                    )}
+                    {avatarUrl && (
+                      <button 
+                        onClick={handleRemoveProfileImage}
+                        className="flex items-center justify-center p-2 bg-red-500/80 rounded-full cursor-pointer hover:bg-red-600/80 transition-colors"
+                        title="Supprimer l'image de profil"
+                      >
+                        <X size={16} className="text-white" />
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="text-center md:text-left flex-1">
@@ -332,24 +427,7 @@ const ProfilPage = () => {
                   {user?.email || "Email non renseigné"}
                 </p>
                 
-                {/* Statistiques rapides */}
-                <div className="flex items-center justify-center md:justify-start gap-6 text-sm mb-3">
-                  <div className="flex items-center gap-1" title="Nombre de défis complétés avec succès">
-                    <Target size={16} />
-                    <span className="font-medium">{userStats.challengesCompleted}</span>
-                    <span className="text-white/80">défis réussis</span>
-                  </div>
-                  <div className="flex items-center gap-1" title="Nombre de jours consécutifs avec au moins un défi complété">
-                    <Zap size={16} />
-                    <span className="font-medium">{userStats.currentStreak}</span>
-                    <span className="text-white/80">jours de suite</span>
-                  </div>
-                  <div className="flex items-center gap-1" title="Total des points gagnés en complétant des défis">
-                    <Trophy size={16} />
-                    <span className="font-medium">{userStats.totalPoints}</span>
-                    <span className="text-white/80">points gagnés</span>
-                  </div>
-                </div>
+
                 
                 <div className="flex items-center justify-center md:justify-start gap-4 text-sm">
                   <div className="flex items-center gap-1">
@@ -526,52 +604,7 @@ const ProfilPage = () => {
           </div>
         )}
 
-        {/* Section explicative des statistiques */}
-        {!editing && (
-          <div className="mt-8 p-6 bg-blue-50 rounded-2xl border border-blue-100">
-            <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center gap-2">
-              <Star size={20} />
-              Comprendre vos statistiques
-            </h3>
-            <div className="grid md:grid-cols-3 gap-4 text-sm">
-              <div className="flex items-start gap-3 p-3 bg-white rounded-xl">
-                <Target size={16} className="text-blue-500 mt-0.5 flex-shrink-0" />
-                <div>
-                  <div className="font-medium text-gray-900">Défis réussis</div>
-                  <div className="text-gray-600 mt-1">
-                    Le nombre total de défis que vous avez complétés avec succès. 
-                    Chaque défi terminé augmente ce compteur.
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 bg-white rounded-xl">
-                <Zap size={16} className="text-yellow-500 mt-0.5 flex-shrink-0" />
-                <div>
-                  <div className="font-medium text-gray-900">Jours de suite</div>
-                  <div className="text-gray-600 mt-1">
-                    Votre "streak" : le nombre de jours consécutifs pendant lesquels 
-                    vous avez complété au moins un défi.
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 bg-white rounded-xl">
-                <Trophy size={16} className="text-amber-500 mt-0.5 flex-shrink-0" />
-                <div>
-                  <div className="font-medium text-gray-900">Points gagnés</div>
-                  <div className="text-gray-600 mt-1">
-                    Le total de tous les points que vous avez accumulés. 
-                    Plus vous complétez de défis, plus vous gagnez de points !
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="mt-4 p-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl text-center">
-              <div className="text-sm">
-                💡 <strong>Astuce :</strong> Complétez des défis régulièrement pour augmenter vos statistiques et maintenir votre streak !
-              </div>
-            </div>
-          </div>
-        )}
+
 
       </div>
     </div>

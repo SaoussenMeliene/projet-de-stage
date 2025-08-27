@@ -22,6 +22,11 @@ const UserAvatar = ({
 
   // Générer les initiales
   const getInitials = (name, email) => {
+    // Forcer "Ad" pour les admins
+    if (email === 'admin@satoripop.com' || name === 'Admin') {
+      return 'Ad';
+    }
+    
     if (name && name !== 'Chargement...') {
       const nameParts = name.trim().split(' ');
       if (nameParts.length >= 2) {
@@ -66,8 +71,34 @@ const UserAvatar = ({
   const sizeClass = sizes[size] || sizes.md;
   const borderClass = showBorder ? 'border-2 border-white shadow-sm' : '';
 
+  // Avatar spécial pour l'admin
+  if (email === 'admin@satoripop.com' && name === 'Admin') {
+    return (
+      <div
+        className={`
+          ${sizeClass}
+          bg-gradient-to-br from-amber-400 to-orange-600
+          ${borderClass}
+          ${className}
+          rounded-full
+          flex
+          items-center
+          justify-center
+          text-white
+          font-semibold
+          select-none
+          relative
+        `}
+        title={name || email}
+      >
+        Ad
+        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 border border-white rounded-full"></div>
+      </div>
+    );
+  }
+
   // Si une image de profil est fournie, l'afficher
-  if (profileImage) {
+  if (profileImage && profileImage !== '/admin-avatar.png') {
     const imageUrl = profileImage.startsWith('http') ? profileImage : `http://localhost:5000${profileImage}`;
     console.log("🖼️ Affichage de l'image de profil:", {
       profileImage,

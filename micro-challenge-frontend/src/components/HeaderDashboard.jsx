@@ -112,16 +112,23 @@ const HeaderDashboard = () => {
         if (token && storedUser) {
           // D'abord, utiliser les données stockées localement
           const userData = JSON.parse(storedUser);
-          const displayName = userData.firstName && userData.lastName
-            ? `${userData.firstName} ${userData.lastName}`
-            : userData.username || (userData.email ? userData.email.split('@')[0] : 'Utilisateur');
+          
+          // Logique spéciale pour l'admin
+          let displayName;
+          if (userData.email === 'admin@satoripop.com') {
+            displayName = 'Admin';
+          } else {
+            displayName = userData.firstName && userData.lastName
+              ? `${userData.firstName} ${userData.lastName}`
+              : userData.username || (userData.email ? userData.email.split('@')[0] : 'Utilisateur');
+          }
 
           setUser({
             name: displayName,
             email: userData.email,
             profileImage: userData.profileImage ?
               (userData.profileImage.startsWith('http') ? userData.profileImage : `http://localhost:5000${userData.profileImage}`) :
-              null,
+              (userData.email === 'admin@satoripop.com' ? '/admin-avatar.png' : null),
             role: userData.role === 'admin' ? 'Administrateur' : 'Collaborateur'
           });
           setUserRole(userData.role);
@@ -141,16 +148,22 @@ const HeaderDashboard = () => {
 
               // Vérifier que serverUser existe et n'est pas null
               if (serverUser && typeof serverUser === 'object') {
-                const serverDisplayName = serverUser.firstName && serverUser.lastName
-                  ? `${serverUser.firstName} ${serverUser.lastName}`
-                  : serverUser.username || (serverUser.email ? serverUser.email.split('@')[0] : 'Utilisateur');
+                // Logique spéciale pour l'admin
+                let serverDisplayName;
+                if (serverUser.email === 'admin@satoripop.com') {
+                  serverDisplayName = 'Admin';
+                } else {
+                  serverDisplayName = serverUser.firstName && serverUser.lastName
+                    ? `${serverUser.firstName} ${serverUser.lastName}`
+                    : serverUser.username || (serverUser.email ? serverUser.email.split('@')[0] : 'Utilisateur');
+                }
 
                 setUser({
                   name: serverDisplayName,
                   email: serverUser.email,
                   profileImage: serverUser.profileImage ?
                     (serverUser.profileImage.startsWith('http') ? serverUser.profileImage : `http://localhost:5000${serverUser.profileImage}`) :
-                    null,
+                    (serverUser.email === 'admin@satoripop.com' ? '/admin-avatar.png' : null),
                   role: serverUser.role === 'admin' ? 'Administrateur' : 'Collaborateur'
                 });
                 setUserRole(serverUser.role);

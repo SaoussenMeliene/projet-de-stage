@@ -1,25 +1,72 @@
-// Configuration pour les tests
-import '@testing-library/jest-dom';
+import { expect, afterEach, beforeEach } from 'vitest';
+import { cleanup } from '@testing-library/react';
+import * as matchers from '@testing-library/jest-dom/matchers';
 
-// Mock pour les imports CSS/images
-global.CSS = { supports: () => false };
+// Étendre les assertions de Vitest avec jest-dom
+expect.extend(matchers);
 
-// Mock pour ResizeObserver
-global.ResizeObserver = class ResizeObserver {
-  constructor(callback) {
-    this.callback = callback;
+// Nettoyer après chaque test
+afterEach(() => {
+  cleanup();
+});
+
+// Mock console.warn pour réduire le bruit des warnings React act()
+const originalWarn = console.warn;
+beforeEach(() => {
+  console.warn = (...args) => {
+    if (args[0]?.includes?.('An update to')) return;
+    originalWarn(...args);
+  };
+});
+
+afterEach(() => {
+  console.warn = originalWarn;
+});
+
+// Configuration globale pour les tests
+globalThis.ResizeObserver = class ResizeObserver {
+  constructor(cb) {
+    this.cb = cb;
   }
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+  observe() {
+    return null;
+  }
+  unobserve() {
+    return null;
+  }
+  disconnect() {
+    return null;
+  }
 };
 
-// Mock pour IntersectionObserver
-global.IntersectionObserver = class IntersectionObserver {
-  constructor(callback) {
-    this.callback = callback;
-  }
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+// Mock pour window.matchMedia
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: (query) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => {},
+  }),
+});
+
+// Mock pour localStorage
+const localStorageMock = {
+  getItem: () => null,
+  setItem: () => null,
+  removeItem: () => null,
+  clear: () => null,
 };
+
+Object.defineProperty(window, 'localStorage', {
+  value: localStorageMock
+});
+
+// Mock pour sessionStorage
+Object.defineProperty(window, 'sessionStorage', {
+  value: localStorageMock
+});

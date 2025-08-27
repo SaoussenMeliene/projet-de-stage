@@ -1,6 +1,6 @@
 import { Users, Target, Award, Calendar, TrendingUp, ArrowUpRight, BarChart3 } from "lucide-react";
 import { useState, useEffect } from "react";
-import challengesService from "../services/challenges";
+import * as challengesService from "../services/challenges";
 import { useTheme } from "../contexts/ThemeContext";
 
 export default function DashboardStatsAdvanced() {

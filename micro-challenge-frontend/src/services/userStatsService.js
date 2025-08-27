@@ -52,18 +52,7 @@ export const calculateBadges = (stats) => {
     });
   }
 
-  // Badge Débutant - première connexion
-  if (stats.challengesCompleted >= 1) {
-    badges.push({
-      id: 'beginner',
-      name: 'Premier pas',
-      type: 'milestone',
-      color: 'text-blue-300',
-      description: 'Premier défi complété !',
-      requirement: 'Compléter votre premier défi',
-      achieved: true
-    });
-  }
+
 
   // Badge Persévérant - 25+ défis
   if (stats.challengesCompleted >= 25) {
@@ -108,7 +97,7 @@ export const fetchUserStats = async (token) => {
         totalPoints: data.totalPoints || 0
       });
 
-      return {
+      const result = {
         challengesCompleted: data.challengesCompleted || 0,
         currentStreak: data.currentStreak || 0,
         totalPoints: data.totalPoints || 0,
@@ -117,8 +106,13 @@ export const fetchUserStats = async (token) => {
         memberSince: data.memberSince ? new Date(data.memberSince) : new Date(),
         badges: badges
       };
+      
+      console.log('✅ Données finales formatées:', result);
+      return result;
     } else {
       console.warn('⚠️ Erreur API stats:', response.status, response.statusText);
+      const errorText = await response.text();
+      console.warn('⚠️ Détail de l\'erreur:', errorText);
     }
   } catch (error) {
     console.warn('⚠️ API stats non disponible:', error.message);

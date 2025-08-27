@@ -119,6 +119,7 @@ exports.updateUserProfile = async (req, res) => {
 // Récupérer les statistiques de l'utilisateur connecté
 exports.getUserStats = async (req, res) => {
   try {
+    console.log(`📊 Récupération des statistiques pour l'utilisateur: ${req.user.userId}`);
     const userId = req.user.userId;
     const user = await User.findById(userId).select('-password');
     
@@ -131,13 +132,21 @@ exports.getUserStats = async (req, res) => {
       user: userId,
       status: "confirmé"
     });
+    console.log(`✅ Participations confirmées trouvées: ${confirmedParticipations}`);
 
     // Calculer les points totaux (somme des scores)
+    // D'abord, mettre à jour les participations confirmées qui n'ont pas de score
+    await Participant.updateMany(
+      { user: userId, status: "confirmé", score: { $eq: 0 } },
+      { $set: { score: 100 } } // 100 points par défi confirmé
+    );
+
     const pointsResult = await Participant.aggregate([
       { $match: { user: userId, status: "confirmé" } },
       { $group: { _id: null, totalPoints: { $sum: "$score" } } }
     ]);
     const totalPoints = pointsResult.length > 0 ? pointsResult[0].totalPoints : 0;
+    console.log(`💰 Points totaux calculés: ${totalPoints}`);
 
     // Calculer la série actuelle (jours consécutifs d'activité)
     const recentParticipations = await Participant.find({
@@ -185,6 +194,7 @@ exports.getUserStats = async (req, res) => {
       email: user.email
     };
 
+    console.log(`📊 Statistiques finales à retourner:`, stats);
     res.status(200).json(stats);
   } catch (error) {
     console.error("Erreur getUserStats:", error);

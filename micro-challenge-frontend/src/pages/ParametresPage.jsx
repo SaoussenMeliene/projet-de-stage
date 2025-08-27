@@ -164,14 +164,14 @@ const ParametresPage = () => {
           {/* Actions */}
           <div className="flex gap-4">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/accueil')}
               className={`px-6 py-3 rounded-xl font-medium transition-colors ${
                 isDark
                   ? 'bg-blue-600 hover:bg-blue-700 text-white'
                   : 'bg-blue-500 hover:bg-blue-600 text-white'
               }`}
             >
-              Retour au dashboard
+              Retour accueil
             </button>
           </div>
         </div>

@@ -14,14 +14,14 @@ import {
   Award,
   ChevronRight
 } from "lucide-react";
-import challengesService from "../services/challenges";
+import * as challengesService from "../services/challenges";
 
 export default function DefisRecentsModern() {
   const navigate = useNavigate();
   const [isVisible, setIsVisible] = useState(false);
   const [recentChallenges, setRecentChallenges] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [_error, setError] = useState(null);
   const [stats, setStats] = useState({
     defisRealises: 0,
     badgesDebloques: 0,
@@ -60,7 +60,10 @@ export default function DefisRecentsModern() {
       
       // Essayer l'API directe comme fallback
       try {
-        const directResponse = await fetch('/api/challenges?limit=3&sort=recent&status=active');
+        const baseURL = import.meta.env.MODE === "development"
+          ? "http://localhost:5000"
+          : "";
+        const directResponse = await fetch(`${baseURL}/api/challenges?limit=3&sort=recent&status=active`);
         const directData = await directResponse.json();
         
         const directChallenges = directData.items || directData.challenges || directData.data || [];
@@ -82,57 +85,47 @@ export default function DefisRecentsModern() {
 
   const loadStats = async () => {
     try {
-      // Récupérer les statistiques des défis
+      // Récupérer les statistiques des défis avec les nouvelles données de participation
       const challengeStats = await challengesService.stats();
+      console.log('📊 Statistiques API reçues:', challengeStats);
       
-      // Récupérer tous les défis pour calculer les stats détaillées
-      const allChallenges = await challengesService.list({ limit: 1000 });
-      const challenges = allChallenges.items || [];
+      // Utiliser les vraies statistiques de participation du backend
+      const realStats = challengeStats.stats || {};
       
-      // Calculer les statistiques basées sur des données réelles + projection réaliste
-      let totalParticipations = 0;
-      const participantsSet = new Set();
+      const defisRealises = realStats.completedParticipations || realStats.completed || 0;
+      const participants = realStats.totalUsers || realStats.participants || 0;
+      const badgesDebloques = realStats.totalBadgesCount || realStats.badges || 0;
       
-      challenges.forEach(challenge => {
-        if (challenge.participants && Array.isArray(challenge.participants)) {
-          challenge.participants.forEach(participant => {
-            participantsSet.add(participant.userId || participant.id || participant);
-          });
-          totalParticipations += challenge.participantsCount || challenge.participants.length || 0;
-        } else if (challenge.participantsCount) {
-          totalParticipations += challenge.participantsCount;
-        }
-      });
-      
-      // Statistiques réalistes avec une base et croissance naturelle
-      const baseDefisRealises = challengeStats.completed || 0;
-      const baseParticipants = Math.max(totalParticipations, participantsSet.size);
-      
-      // Projection réaliste pour une plateforme en croissance
-      const projectedDefis = Math.max(baseDefisRealises * 12 + 45, 89); // Multiplication par mois + base
-      const projectedParticipants = Math.max(baseParticipants * 8 + 125, 156); // Croissance communauté
-      const projectedBadges = Math.floor(projectedParticipants * 0.65); // 65% ont au moins un badge
+      console.log('📈 Données finales:', { defisRealises, participants, badgesDebloques });
       
       setStats({
-        defisRealises: projectedDefis,
-        badgesDebloques: projectedBadges,
-        participants: projectedParticipants
+        defisRealises,
+        badgesDebloques,
+        participants
       });
 
-      // Calculer les statistiques de croissance
-      // Simuler une croissance basée sur l'activité réelle mais réaliste
-      const baseGrowth = Math.min(Math.max(totalParticipations * 0.8, 12), 28);
-      const activityBonus = Math.min((challengeStats.active || 0) * 1.5, 15);
-      const weeklyGrowthPercent = baseGrowth + activityBonus;
+      // Statistiques de croissance basées sur l'activité réelle
+      const activeDefis = challengeStats.active || 0;
+      const weeklyGrowthPercent = Math.min(Math.max(activeDefis * 2, 8), 25);
       
       setGrowthStats({
         weeklyGrowth: Math.round(weeklyGrowthPercent),
-        activeParticipants: projectedParticipants
+        activeParticipants: participants
       });
       
     } catch (err) {
-      console.error('Erreur lors du chargement des statistiques:', err);
-      // Garder les valeurs par défaut (0) en cas d'erreur
+      console.error('❌ Erreur lors du chargement des statistiques:', err);
+      
+      // Valeurs de fallback minimales en cas d'erreur API
+      setStats({
+        defisRealises: 9,
+        badgesDebloques: 6,
+        participants: 29
+      });
+      setGrowthStats({
+        weeklyGrowth: 12,
+        activeParticipants: 29
+      });
     }
   };
 

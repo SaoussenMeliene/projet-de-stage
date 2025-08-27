@@ -189,7 +189,7 @@ export const participantService = {
   }
 };
 
-// Service pour les utilisateurs
+// Service pour les utilisateurs userService
 export const userService = {
   // Rechercher des utilisateurs pour les ajouter aux groupes
   async searchUsers(query) {

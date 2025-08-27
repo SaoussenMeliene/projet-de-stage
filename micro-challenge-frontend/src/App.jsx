@@ -29,7 +29,7 @@ import EditChallengePage from "./pages/EditChallengePage";
 
 const App = () => {
   return (
-   
+    <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       <Routes>
          {/* Définir la page d’accueil */}
         <Route path="/" element={<HomePage  />} />
@@ -63,8 +63,7 @@ const App = () => {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
        </Routes>
-    
-  
+    </div>
   );
 };
 

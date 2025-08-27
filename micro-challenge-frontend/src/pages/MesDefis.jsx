@@ -3,12 +3,15 @@ import HeaderDashboard from "../components/HeaderDashboard";
 import DashboardChallengeModern from "../components/DashboardChallengeModern";
 import ActiveChallengesModern from "../components/ActiveChallengesModern";
 import RecommendedChallenges from "../components/RecommendedChallenges";
+import { fetchUserStats } from "../services/userStatsService";
 import { Target, TrendingUp, Award, Users, Plus, Zap, Calendar, Star } from "lucide-react";
+import { useTheme } from "../contexts/ThemeContext";
 
 const MesDefis = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [userStats, setUserStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { isDark } = useTheme();
 
   useEffect(() => {
     setIsVisible(true);
@@ -94,10 +97,12 @@ const MesDefis = () => {
           ];
         }
 
-        // Calculer les statistiques réelles selon le modèle Participant
+        // Utiliser l'API de statistiques pour avoir des données cohérentes avec la page de profil
+        const apiStats = await fetchUserStats(token);
+        
+        // Calculer les statistiques locales basées sur les participations
         const activeDefis = participationsData.filter(p => p.status === 'en attente' || p.status === 'confirmé').length;
         const completedDefis = participationsData.filter(p => p.status === 'confirmé' && p.proof).length;
-        const badges = participationsData.filter(p => p.status === 'confirmé' && p.score > 80).length; // Badge si score > 80
         const collaborations = participationsData.length;
         
         // Score moyen basé sur les participations réelles
@@ -120,22 +125,14 @@ const MesDefis = () => {
 
         const averageScore = scoreCount > 0 ? Math.round(totalScore / scoreCount) : 0;
 
-        // Calculer les points totaux
-        let totalPoints = 0;
-        participationsData.forEach(p => {
-          if (p.points) totalPoints += p.points;
-          else if (p.status === 'confirmé') totalPoints += 100; // 100 points par défi confirmé
-          else if (p.status === 'en attente') totalPoints += 25; // 25 points pour participation en cours
-        });
-
         const calculatedStats = {
           userName: userData.username || userData.email?.split('@')[0] || 'Utilisateur',
           activeDefis: activeDefis,
-          completedDefis: completedDefis,
-          badges: badges,
+          completedDefis: apiStats.challengesCompleted, // Utiliser les vraies données de l'API
+          badges: apiStats.badges.length,
           averageScore: averageScore,
           collaborations: collaborations,
-          totalPoints: totalPoints,
+          totalPoints: apiStats.totalPoints, // Utiliser les vraies données de l'API - IMPORTANT
           lastLogin: userData.lastLogin || userData.updatedAt
         };
 
@@ -218,7 +215,9 @@ const MesDefis = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f0f9f6]">
+    <div className={`min-h-screen transition-colors duration-300 ${
+      isDark ? 'bg-gray-900' : 'bg-[#f0f9f6]'
+    }`}>
       {/* Header */}
       <HeaderDashboard />
 

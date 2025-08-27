@@ -4,8 +4,10 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { api } from "../lib/axios";
 import { ToastContainer, toast } from "react-toastify";
 import { debounce } from "lodash";
+import { useTheme } from "../contexts/ThemeContext";
 
 const LoginPagePro = () => {
+  const { isDark } = useTheme();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -239,11 +241,17 @@ const LoginPagePro = () => {
   const canSubmit = validation.email.isValid && validation.password.isValid && formData.email && formData.password;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-green-100 to-blue-100 px-4">
+    <div className={`min-h-screen flex items-center justify-center px-4 transition-colors duration-300 ${
+      isDark 
+        ? 'dark bg-gradient-to-r from-gray-800 to-gray-900' 
+        : 'bg-gradient-to-r from-green-100 to-blue-100'
+    }`}>
       <ToastContainer />
 
       {/* Container principal - même style que RegisterPage */}
-      <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg">
+      <div className={`p-8 rounded-2xl shadow-2xl w-full max-w-lg transition-colors duration-300 ${
+        isDark ? 'bg-gray-800' : 'bg-white'
+      }`}>
 
         {/* Header simple - même style que RegisterPage */}
         <div className="text-center mb-8">
@@ -252,8 +260,12 @@ const LoginPagePro = () => {
               <FiShield className="text-white" size={24} />
             </div>
           </div>
-          <h2 className="text-3xl font-bold text-gray-800 mb-2">Connexion</h2>
-          <p className="text-gray-600">Accédez à Satoripop Challenges</p>
+          <h2 className={`text-3xl font-bold mb-2 transition-colors duration-300 ${
+            isDark ? 'text-white' : 'text-gray-800'
+          }`}>Connexion</h2>
+          <p className={`transition-colors duration-300 ${
+            isDark ? 'text-gray-300' : 'text-gray-600'
+          }`}>Accédez à Satoripop Challenges</p>
         </div>
 
         {/* Formulaire */}

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import HeaderDashboard from "../components/HeaderDashboard";
 import PollComponent from "../components/PollComponent";
 import { groupService } from "../services/groupService";
+import { useTheme } from "../contexts/ThemeContext";
 import {
   Users,
   Plus,
@@ -37,6 +38,7 @@ const MonGroupeSimple = () => {
   // Image en attente de confirmation
   const [pendingImage, setPendingImage] = useState(null);
   const [pendingImageUrl, setPendingImageUrl] = useState('');
+  const { isDark } = useTheme();
   
   // Actions rapides
   const [showQuickPoll, setShowQuickPoll] = useState(false);
@@ -389,7 +391,9 @@ const MonGroupeSimple = () => {
   // Interface de discussion
   if (!showGroupList && selectedGroup) {
     return (
-      <div className="min-h-screen bg-gray-100">
+      <div className={`min-h-screen transition-colors duration-300 ${
+        isDark ? 'bg-gray-900' : 'bg-gray-100'
+      }`}>
         <HeaderDashboard />
         
         <div className="flex h-[calc(100vh-80px)] gap-0">
@@ -827,7 +831,9 @@ const MonGroupeSimple = () => {
 
   // Interface de liste des groupes
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className={`min-h-screen transition-colors duration-300 ${
+      isDark ? 'bg-gray-900' : 'bg-gray-100'
+    }`}>
       <HeaderDashboard />
       
       <div className="container mx-auto px-4 py-6 pt-8">

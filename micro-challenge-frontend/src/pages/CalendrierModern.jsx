@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import HeaderDashboard from "../components/HeaderDashboard";
+import * as challengesService from "../services/challenges";
+import { useTheme } from "../contexts/ThemeContext";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -37,6 +39,7 @@ const CalendrierModern = () => {
   const [loading, setLoading] = useState(true);
   const [calendarStats, setCalendarStats] = useState({});
   const [, setSelectedDate] = useState(null);
+  const { isDark } = useTheme();
   const [filterCategory, setFilterCategory] = useState('all');
 
   useEffect(() => {
@@ -52,15 +55,12 @@ const CalendrierModern = () => {
       
       console.log('🔄 Récupération des données du calendrier...');
       
-      // Récupérer les défis
+      // Récupérer les défis via le service challenges
       let challengesData = [];
       try {
-        const challengesResponse = await fetch('/api/challenges');
-        if (challengesResponse.ok) {
-          const challengesResult = await challengesResponse.json();
-          challengesData = challengesResult?.challenges || [];
-          console.log('📊 Défis récupérés:', challengesData.length);
-        }
+        const challengesResponse = await challengesService.list({ limit: 100 });
+        challengesData = challengesResponse.data?.items || challengesResponse.items || [];
+        console.log('📊 Défis récupérés:', challengesData.length);
       } catch (challengeError) {
         console.log('ℹ️ Impossible de récupérer les défis via API:', challengeError.message);
       }
@@ -84,10 +84,10 @@ const CalendrierModern = () => {
         }
       }
 
-      // Si aucune donnée réelle, créer des données de démonstration
+      // Si aucune donnée réelle, garder un tableau vide
       if (challengesData.length === 0) {
-        console.log('🎭 Création de données de démonstration pour le calendrier');
-        challengesData = generateDemoCalendarData();
+        console.log('ℹ️ Aucun défi trouvé dans la base de données');
+        challengesData = [];
       }
 
       // Calculer les statistiques
@@ -106,7 +106,7 @@ const CalendrierModern = () => {
     } catch (error) {
       console.error('❌ Erreur lors de la récupération des données du calendrier:', error);
       // Données par défaut en cas d'erreur
-      setChallenges(generateDemoCalendarData());
+      setChallenges([]);
       setUserParticipations([]);
       setCalendarStats({});
     } finally {
@@ -114,80 +114,7 @@ const CalendrierModern = () => {
     }
   };
 
-  // Générer des données de démonstration
-  const generateDemoCalendarData = () => {
-    const today = new Date();
-    const thisMonth = today.getMonth();
-    const thisYear = today.getFullYear();
-    
-    return [
-      {
-        _id: 'demo-cal-1',
-        title: 'Défi Recyclage Intelligent',
-        description: 'Apprenez les bonnes pratiques de tri et de recyclage',
-        category: 'Environnement',
-        startDate: new Date(thisYear, thisMonth, 15),
-        endDate: new Date(thisYear, thisMonth, 22),
-        maxParticipants: 50,
-        currentParticipants: 34,
-        difficulty: 'Facile',
-        points: 200,
-        status: 'active'
-      },
-      {
-        _id: 'demo-cal-2',
-        title: 'Challenge Sport Quotidien',
-        description: '30 minutes d\'activité physique par jour',
-        category: 'Bien-être',
-        startDate: new Date(thisYear, thisMonth, 20),
-        endDate: new Date(thisYear, thisMonth, 27),
-        maxParticipants: 100,
-        currentParticipants: 67,
-        difficulty: 'Moyen',
-        points: 150,
-        status: 'active'
-      },
-      {
-        _id: 'demo-cal-3',
-        title: 'Atelier Créatif Upcycling',
-        description: 'Transformez vos déchets en objets utiles',
-        category: 'Créativité',
-        startDate: new Date(thisYear, thisMonth, 25),
-        endDate: new Date(thisYear, thisMonth, 25),
-        maxParticipants: 25,
-        currentParticipants: 18,
-        difficulty: 'Facile',
-        points: 300,
-        status: 'upcoming'
-      },
-      {
-        _id: 'demo-cal-4',
-        title: 'Défi Solidaire Entraide',
-        description: 'Aidez votre communauté locale',
-        category: 'Solidaire',
-        startDate: new Date(thisYear, thisMonth, 28),
-        endDate: new Date(thisYear, thisMonth + 1, 4),
-        maxParticipants: 75,
-        currentParticipants: 23,
-        difficulty: 'Moyen',
-        points: 250,
-        status: 'upcoming'
-      },
-      {
-        _id: 'demo-cal-5',
-        title: 'Challenge Zéro Déchet',
-        description: 'Réduisez vos déchets au maximum',
-        category: 'Environnement',
-        startDate: new Date(thisYear, thisMonth + 1, 1),
-        endDate: new Date(thisYear, thisMonth + 1, 8),
-        maxParticipants: 60,
-        currentParticipants: 12,
-        difficulty: 'Difficile',
-        points: 400,
-        status: 'upcoming'
-      }
-    ];
-  };
+
 
   // Calculer les statistiques du calendrier
   const calculateCalendarStats = (challengesData, participationsData) => {
@@ -204,11 +131,7 @@ const CalendrierModern = () => {
              (startDate <= new Date(currentYear, currentMonth, 1) && endDate >= new Date(currentYear, currentMonth + 1, 0));
     });
     
-    const activeChallenges = challengesData.filter(challenge => {
-      const startDate = new Date(challenge.startDate);
-      const endDate = new Date(challenge.endDate);
-      return today >= startDate && today <= endDate;
-    });
+
     
     const upcomingChallenges = challengesData.filter(challenge => {
       const startDate = new Date(challenge.startDate);
@@ -323,21 +246,11 @@ const CalendrierModern = () => {
 
       console.log(`🎯 Tentative de participation au défi: ${challengeId}`);
       
-      const response = await fetch(`/api/participants/join/${challengeId}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        alert('🎉 Vous avez rejoint le défi avec succès !');
-        // Rafraîchir les données
-        fetchCalendarData();
-      } else {
-        alert('❌ Erreur lors de la participation au défi');
-      }
+      await challengesService.joinChallenge(challengeId);
+      
+      alert('🎉 Vous avez rejoint le défi avec succès !');
+      // Rafraîchir les données
+      fetchCalendarData();
     } catch (error) {
       console.error('❌ Erreur lors de la participation:', error);
       alert('❌ Erreur lors de la participation au défi');
@@ -383,14 +296,24 @@ const CalendrierModern = () => {
 
   // Filtrer et transformer les défis pour l'affichage
   const getUpcomingEvents = () => {
+    const today = new Date();
     let filteredChallenges = challenges;
+    
+    // Filtrer pour ne garder que les défis actifs et à venir
+    filteredChallenges = challenges.filter(challenge => {
+      const endDate = new Date(challenge.endDate);
+      return endDate >= today; // Défis qui ne sont pas encore terminés
+    });
     
     // Filtrer par catégorie si sélectionnée
     if (filterCategory !== 'all') {
-      filteredChallenges = challenges.filter(challenge => 
+      filteredChallenges = filteredChallenges.filter(challenge => 
         challenge.category?.toLowerCase() === filterCategory.toLowerCase()
       );
     }
+    
+    // Trier par date de début (les plus proches en premier)
+    filteredChallenges.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
     
     // Transformer les défis pour l'affichage
     return filteredChallenges.slice(0, 6).map(challenge => {
@@ -414,13 +337,13 @@ const CalendrierModern = () => {
         categoryGradient: getCategoryGradient(challenge.category),
         time: startDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
         duration: duration === 1 ? '1 jour' : `${duration} jours`,
-        participants: challenge.currentParticipants || 0,
-        maxParticipants: challenge.maxParticipants || 100,
+        participants: challenge.participantsCount || 0,
+        maxParticipants: 100, // Valeur par défaut
         location: "En ligne",
         status: isActive ? "En cours" : isUpcoming ? "À venir" : "Terminé",
-        priority: challenge.difficulty === 'Difficile' ? 'high' : challenge.difficulty === 'Moyen' ? 'medium' : 'low',
-        points: challenge.points || 100,
-        difficulty: challenge.difficulty || 'Facile',
+        priority: 'medium', // Valeur par défaut pour l'instant
+        points: challenge.rewardPoints || 100,
+        difficulty: 'Facile', // Valeur par défaut
         isParticipating
       };
     });
@@ -428,7 +351,9 @@ const CalendrierModern = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f0f9f6]">
+      <div className={`min-h-screen transition-colors duration-300 ${
+        isDark ? 'bg-gray-900' : 'bg-[#f0f9f6]'
+      }`}>
         <HeaderDashboard />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pt-8">
           <div className="animate-pulse">
@@ -455,7 +380,9 @@ const CalendrierModern = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f0f9f6]">
+    <div className={`min-h-screen transition-colors duration-300 ${
+      isDark ? 'bg-gray-900' : 'bg-[#f0f9f6]'
+    }`}>
       <HeaderDashboard />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pt-8">
@@ -656,7 +583,7 @@ const CalendrierModern = () => {
                   });
                   
                   if (activeEvents.length > 0) {
-                    return activeEvents.slice(0, 2).map((challenge, index) => (
+                    return activeEvents.slice(0, 2).map((challenge) => (
                       <div key={challenge._id} className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-3 border border-green-200">
                         <div className="flex items-center gap-2 mb-1">
                           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -811,7 +738,16 @@ const CalendrierModern = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {getUpcomingEvents().map((event, index) => (
+              {getUpcomingEvents().length === 0 ? (
+                <div className="col-span-full text-center py-12">
+                  <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CalendarIcon className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-600 mb-2">Aucun événement à venir</h3>
+                  <p className="text-gray-500">Il n'y a actuellement aucun défi actif ou à venir. Revenez plus tard !</p>
+                </div>
+              ) : (
+                getUpcomingEvents().map((event, index) => (
                 <div
                   key={event.id}
                   className="group bg-gradient-to-br from-gray-50 to-white rounded-2xl p-6 border border-gray-200 hover:shadow-xl transition-all duration-500 transform hover:-translate-y-2 hover:scale-105 cursor-pointer"
@@ -933,7 +869,8 @@ const CalendrierModern = () => {
                     )}
                   </div>
                 </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>

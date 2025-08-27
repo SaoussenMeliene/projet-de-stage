@@ -136,13 +136,56 @@ async function listChallenges(req, res) {
 async function getChallengeStats(_req, res) {
   try {
     const now = new Date();
-    const [all, active, upcoming, completed] = await Promise.all([
+    
+    // Statistiques des défis par statut temporal
+    const [all, active, upcoming, completedByDate] = await Promise.all([
       Challenge.estimatedDocumentCount(),
       Challenge.countDocuments({ startDate: { $lte: now }, endDate: { $gte: now } }),
       Challenge.countDocuments({ startDate: { $gt: now } }),
       Challenge.countDocuments({ endDate: { $lt: now } }),
     ]);
-    res.json({ all, active, upcoming, completed });
+
+    // Statistiques de participation réelles depuis la collection Participant
+    let totalUsers = 0;
+    let completedParticipations = 0;
+    let totalBadgesCount = 0;
+    
+    try {
+      // Compter les utilisateurs uniques qui ont participé
+      const uniqueUsers = await Participant.aggregate([
+        { $group: { _id: "$user" } },
+        { $count: "count" }
+      ]);
+      totalUsers = uniqueUsers[0]?.count || 0;
+
+      // Compter les participations confirmées (défis réalisés)
+      completedParticipations = await Participant.countDocuments({ status: "confirmé" });
+
+      // Estimation des badges: environ 0.7 badge par participation confirmée
+      totalBadgesCount = Math.floor(completedParticipations * 0.7);
+      
+    } catch (participantErr) {
+      console.warn("Erreur lors du calcul des stats Participant:", participantErr.message);
+    }
+
+    res.json({ 
+      // Statistiques des défis (compatible avec l'existant)
+      all, 
+      active, 
+      upcoming, 
+      completed: completedByDate,
+      
+      // Nouvelles statistiques de participation
+      stats: {
+        totalUsers,
+        completedParticipations, 
+        totalBadgesCount,
+        // Alias pour la compatibilité avec le frontend
+        completed: completedParticipations,
+        participants: totalUsers,
+        badges: totalBadgesCount
+      }
+    });
   } catch (err) {
     console.error("getChallengeStats error:", err);
     res.status(500).json({ msg: "Erreur serveur." });

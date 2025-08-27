@@ -5,8 +5,10 @@ import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import { debounce } from "lodash";
 import UserAvatar from "../components/UserAvatar";
+import { useTheme } from "../contexts/ThemeContext";
 
 const RegisterPageNew = () => {
+  const { isDark } = useTheme();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -396,36 +398,54 @@ const RegisterPageNew = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+    <div className={`min-h-screen flex items-center justify-center px-4 transition-colors duration-300 ${
+      isDark 
+        ? 'dark bg-gradient-to-br from-gray-800 to-gray-900' 
+        : 'bg-gradient-to-br from-blue-50 to-indigo-100'
+    }`}>
       <ToastContainer />
-      <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-md w-full border border-gray-100">
+      <div className={`p-8 rounded-3xl shadow-2xl max-w-md w-full transition-colors duration-300 ${
+        isDark 
+          ? 'bg-gray-800 border border-gray-700' 
+          : 'bg-white border border-gray-100'
+      }`}>
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <FiUser className="text-white" size={24} />
           </div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Créer un compte</h1>
-          <p className="text-gray-600">Rejoignez notre communauté de défis</p>
+          <h1 className={`text-3xl font-bold mb-2 transition-colors duration-300 ${
+            isDark ? 'text-white' : 'text-gray-800'
+          }`}>Créer un compte</h1>
+          <p className={`transition-colors duration-300 ${
+            isDark ? 'text-gray-300' : 'text-gray-600'
+          }`}>Rejoignez notre communauté de défis</p>
         </div>
 
         {/* Indicateur de progression */}
         <div className="flex items-center justify-center mb-8 space-x-4">
           <div className="flex items-center">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
-              step >= 1 ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'
+              step >= 1 ? 'bg-blue-500 text-white' : (isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-500')
             }`}>
               1
             </div>
-            <span className="ml-2 text-sm text-gray-600">Compte</span>
+            <span className={`ml-2 text-sm transition-colors duration-300 ${
+              isDark ? 'text-gray-300' : 'text-gray-600'
+            }`}>Compte</span>
           </div>
-          <div className={`w-12 h-1 transition-all duration-300 ${step >= 2 ? 'bg-blue-500' : 'bg-gray-200'}`}></div>
+          <div className={`w-12 h-1 transition-all duration-300 ${
+            step >= 2 ? 'bg-blue-500' : (isDark ? 'bg-gray-600' : 'bg-gray-200')
+          }`}></div>
           <div className="flex items-center">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
-              step >= 2 ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'
+              step >= 2 ? 'bg-blue-500 text-white' : (isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-500')
             }`}>
               2
             </div>
-            <span className="ml-2 text-sm text-gray-600">Profil</span>
+            <span className={`ml-2 text-sm transition-colors duration-300 ${
+              isDark ? 'text-gray-300' : 'text-gray-600'
+            }`}>Profil</span>
           </div>
         </div>
 

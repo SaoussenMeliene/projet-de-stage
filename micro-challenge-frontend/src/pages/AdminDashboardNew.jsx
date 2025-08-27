@@ -29,9 +29,11 @@ import { proofService } from "../services/proofService";
 import { rewardService } from "../services/rewardService";
 import { userService } from "../services/userService";
 import { api } from "../lib/axios";
+import { useTheme } from "../contexts/ThemeContext";
 
 const AdminDashboardNew = () => {
   const navigate = useNavigate();
+  const { isDark } = useTheme();
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [recompenses, setRecompenses] = useState([]);
@@ -378,8 +380,8 @@ const AdminDashboardNew = () => {
       const mockUsers = [
         {
           id: '1',
-          nom: 'Jean Dupont',
-          email: 'jean.dupont@example.com',
+          nom: 'Admin',
+          email: 'admin@satoripop.com',
           role: 'admin',
           statut: 'Actif',
           dateInscription: '2024-01-15T10:00:00Z',
@@ -1310,7 +1312,9 @@ const AdminDashboardNew = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className={`min-h-screen flex items-center justify-center transition-colors duration-300 ${
+        isDark ? 'bg-gray-900' : 'bg-gray-50'
+      }`}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Chargement du panneau d'administration...</p>
@@ -1320,7 +1324,9 @@ const AdminDashboardNew = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`min-h-screen transition-colors duration-300 ${
+      isDark ? 'bg-gray-900' : 'bg-gray-50'
+    }`}>
       <HeaderDashboard />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pt-8">
@@ -2988,6 +2994,7 @@ const AdminDashboardNew = () => {
                 >
                   {actionLoading ? 'Rejet...' : 'Rejeter'}
                 </button>
+               
                 <button
                   onClick={() => setShowProofModal(false)}
                   className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
@@ -2999,190 +3006,6 @@ const AdminDashboardNew = () => {
           </div>
         </div>
       )}
-
-      {/* Modal invitation utilisateur */}
-      {showInviteUserModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-800">Inviter un utilisateur</h2>
-              <button
-                onClick={() => setShowInviteUserModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Nom *</label>
-                <input
-                  type="text"
-                  value={inviteForm.nom}
-                  onChange={(e) => setInviteForm({...inviteForm, nom: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Nom complet"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
-                <input
-                  type="email"
-                  value={inviteForm.email}
-                  onChange={(e) => setInviteForm({...inviteForm, email: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="email@example.com"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Rôle</label>
-                <select
-                  value={inviteForm.role}
-                  onChange={(e) => setInviteForm({...inviteForm, role: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="collaborateur">Collaborateur</option>
-                  <option value="admin">Administrateur</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
-              <button
-                onClick={() => setShowInviteUserModal(false)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleInviteUser}
-                disabled={userActionLoading}
-                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
-              >
-                {userActionLoading ? 'Invitation...' : 'Inviter'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal création récompense */}
-      {showCreateRewardModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-800">Créer une récompense</h2>
-              <button
-                onClick={() => setShowCreateRewardModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Nom *</label>
-                <input
-                  type="text"
-                  value={rewardForm.name}
-                  onChange={(e) => setRewardForm({...rewardForm, name: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="Nom de la récompense"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                <textarea
-                  value={rewardForm.description}
-                  onChange={(e) => setRewardForm({...rewardForm, description: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="Description de la récompense"
-                  rows="3"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Points *</label>
-                  <input
-                    type="number"
-                    value={rewardForm.points}
-                    onChange={(e) => setRewardForm({...rewardForm, points: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="100"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Catégorie</label>
-                  <input
-                    type="text"
-                    value={rewardForm.category}
-                    onChange={(e) => setRewardForm({...rewardForm, category: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="Écologique"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Icône/Emoji</label>
-                  <input
-                    type="text"
-                    value={rewardForm.image}
-                    onChange={(e) => setRewardForm({...rewardForm, image: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="🏆"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Rareté</label>
-                  <select
-                    value={rewardForm.rarity}
-                    onChange={(e) => setRewardForm({...rewardForm, rarity: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  >
-                    <option value="common">Commune</option>
-                    <option value="rare">Rare</option>
-                    <option value="epic">Épique</option>
-                    <option value="legendary">Légendaire</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
-              <button
-                onClick={() => setShowCreateRewardModal(false)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleCreateReward}
-                disabled={recompenseLoading}
-                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
-              >
-                {recompenseLoading ? 'Création...' : 'Créer'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal CreateChallengeModal (existing) */}
-      <CreateChallengeModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onSuccess={loadChallenges}
-      />
     </div>
   );
 };

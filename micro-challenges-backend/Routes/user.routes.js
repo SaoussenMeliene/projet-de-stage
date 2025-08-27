@@ -82,4 +82,49 @@ router.put("/profile-image", verifyToken, handleProfileImageUpload, async (req, 
   }
 });
 
+// DELETE: Supprimer l'image de profil
+router.delete("/profile-image", verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const fs = require('fs');
+    const path = require('path');
+
+    // Récupérer l'utilisateur actuel pour connaître l'image à supprimer
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ msg: "Utilisateur introuvable" });
+    }
+
+    // Supprimer le fichier physique s'il existe
+    if (user.profileImage) {
+      const imagePath = path.join(__dirname, '..', user.profileImage.replace(/^\//, ''));
+      if (fs.existsSync(imagePath)) {
+        try {
+          fs.unlinkSync(imagePath);
+          console.log("✅ Fichier image supprimé:", imagePath);
+        } catch (error) {
+          console.warn("⚠️ Impossible de supprimer le fichier:", error.message);
+        }
+      }
+    }
+
+    // Mettre à jour l'utilisateur pour retirer l'image de profil
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $unset: { profileImage: 1 } },
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    console.log("✅ Image de profil supprimée pour l'utilisateur:", userId);
+
+    res.status(200).json({
+      msg: "Image de profil supprimée avec succès",
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error("Erreur deleteProfileImage:", error);
+    res.status(500).json({ msg: "Erreur serveur", error: error.message });
+  }
+});
+
 module.exports = router;

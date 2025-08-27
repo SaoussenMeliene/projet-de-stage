@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useTheme } from "../contexts/ThemeContext";
 import {
   ArrowRight,
   Play,
@@ -23,6 +24,7 @@ import Logo from "../components/Logo";
 export default function HomePage() {
   const [isVisible, setIsVisible] = useState(false);
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
+  const { isDark } = useTheme();
 
   useEffect(() => {
     setIsVisible(true);
@@ -100,26 +102,28 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className={`min-h-screen transition-colors duration-300 ${
+      isDark ? 'dark bg-gray-900' : 'bg-white'
+    }`}>
       {/* Navigation moderne */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex items-center gap-3">
               <Logo size="medium" />
-              <span className="text-xl font-bold text-gray-800">Challenges</span>
+              <span className="text-xl font-bold text-gray-800 dark:text-gray-100">Challenges</span>
             </div>
 
             {/* Navigation links */}
             <div className="hidden md:flex items-center gap-8">
-              <a href="#features" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
+              <a href="#features" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 font-medium transition-colors duration-200">
                 Fonctionnalités
               </a>
-              <a href="#testimonials" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
+              <a href="#testimonials" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 font-medium transition-colors duration-200">
                 Témoignages
               </a>
-              <a href="#contact" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
+              <a href="#contact" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 font-medium transition-colors duration-200">
                 Contact
               </a>
             </div>
@@ -128,7 +132,7 @@ export default function HomePage() {
             <div className="flex items-center gap-4">
               <Link
                 to="/login"
-                className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200"
+                className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 font-medium transition-colors duration-200"
               >
                 Connexion
               </Link>
@@ -144,7 +148,7 @@ export default function HomePage() {
       </nav>
 
       {/* Section Hero */}
-      <section className="pt-24 pb-16 bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 relative overflow-hidden">
+      <section className="pt-24 pb-16 bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-800 dark:via-gray-700 dark:to-gray-900 relative overflow-hidden">
         {/* Effets de fond */}
         <div className="absolute top-0 left-0 w-96 h-96 bg-purple-200/30 rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-green-200/30 rounded-full blur-3xl"></div>

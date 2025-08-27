@@ -33,4 +33,10 @@ export const update = (id, payload) =>
 export const getById = (id) =>
   api.get(`/challenges/${id}`);
 
-export default { list, stats, create, update, getById };
+export const joinChallenge = (id) =>
+  api.post(`/challenges/${id}/join`);
+
+export const leaveChallenge = (id) =>
+  api.post(`/challenges/${id}/leave`);
+
+export default { list, stats, create, update, getById, joinChallenge, leaveChallenge };

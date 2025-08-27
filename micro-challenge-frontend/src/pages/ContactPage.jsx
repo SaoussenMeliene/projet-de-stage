@@ -1,9 +1,18 @@
 import React from 'react';
+import { useTheme } from '../contexts/ThemeContext';
 
 const ContactPage = () => {
+  const { isDark } = useTheme();
+  
   return (
-    <div className="min-h-screen bg-gradient-to-r from-green-100 to-blue-100 px-8 py-16">
-      <div className="max-w-xl mx-auto text-gray-800">
+    <div className={`min-h-screen px-8 py-16 transition-colors duration-300 ${
+      isDark 
+        ? 'bg-gradient-to-r from-gray-900 to-gray-800' 
+        : 'bg-gradient-to-r from-green-100 to-blue-100'
+    }`}>
+      <div className={`max-w-xl mx-auto transition-colors duration-300 ${
+        isDark ? 'text-gray-200' : 'text-gray-800'
+      }`}>
         <h1 className="text-4xl font-bold mb-6">Contactez-nous</h1>
         <p className="mb-4 text-lg">
           Une question, une suggestion ou une envie de collaborer ? Écrivez-nous !
