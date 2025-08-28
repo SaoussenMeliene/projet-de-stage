@@ -458,7 +458,7 @@ const ProfilPage = () => {
             </div>
 
             <div className="flex flex-wrap gap-3 justify-center md:justify-start">
-              {userStats.badges.map((badge) => (
+              {userStats.badges.filter(badge => badge.unlocked).map((badge) => (
                 <div 
                   key={badge.id} 
                   className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full border border-white/30 group relative"
@@ -474,11 +474,7 @@ const ProfilPage = () => {
                 </div>
               ))}
               
-              {userStats.badges.length === 0 && (
-                <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20">
-                  <span className="text-sm font-medium text-white/70">Aucun badge pour le moment</span>
-                </div>
-              )}
+
             </div>
           </div>
         </div>

@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import HeaderDashboard from "../components/HeaderDashboard";
 import CreateChallengeModal from "../components/CreateChallengeModal";
+import CreateRewardModal from "../components/CreateRewardModal";
 import { proofService } from "../services/proofService";
 import { rewardService } from "../services/rewardService";
 import { userService } from "../services/userService";
@@ -170,6 +171,7 @@ const AdminDashboardNew = () => {
       }
       
       // Mettre à jour les états
+      console.log(`📊 ${challengesData.length} défis chargés:`, challengesData);
       setDefis(challengesData);
       setFilteredDefis(challengesData);
       
@@ -183,18 +185,44 @@ const AdminDashboardNew = () => {
   // Fonction pour charger les statistiques
   const loadStats = async () => {
     try {
-      const [challengesRes, proofsRes] = await Promise.all([
-        api.get('/challenges/stats'),
-        proofService.getPendingProofs()
-      ]);
-      
-      const challengeStats = challengesRes.data || {};
+      // Charger les preuves en attente
+      const proofsRes = await proofService.getPendingProofs();
       const pendingProofs = proofsRes.proofs || [];
       
+      // Calculer les statistiques des défis
+      const now = new Date();
+      const totalDefis = defis.length;
+      const defisActifs = defis.filter(defi => {
+        const startDate = defi.startDate ? new Date(defi.startDate) : null;
+        const endDate = defi.endDate ? new Date(defi.endDate) : null;
+        return (!startDate || now >= startDate) && (!endDate || now <= endDate);
+      }).length;
+      
+      // Calculer les statistiques des récompenses
+      const totalRecompenses = recompenses.length;
+      const recompensesActives = recompenses.filter(r => r.status === 'active').length;
+      const totalObtentions = recompenses.reduce((total, r) => total + (r.obtentions || 0), 0);
+      
+      // Mettre à jour les statistiques des récompenses
+      setRewardStats({
+        actives: recompensesActives,
+        obtenues: totalObtentions,
+        pointsDistribues: totalObtentions * 100 // Estimation basée sur les obtentions
+      });
+      
+      console.log('📊 Statistiques calculées:', {
+        totalDefis,
+        defisActifs,
+        totalRecompenses,
+        recompensesActives,
+        utilisateursCount: utilisateurs.length,
+        groupesCount: groupes.length
+      });
+
       setStats({
         totalDefis: { 
-          value: challengeStats.all || 0, 
-          change: `+${challengeStats.active || 0} actifs`, 
+          value: totalDefis, 
+          change: `${defisActifs} actifs`, 
           trend: 'up' 
         },
         utilisateurs: { 
@@ -215,15 +243,38 @@ const AdminDashboardNew = () => {
       });
     } catch (error) {
       console.error('❌ Erreur chargement statistiques:', error);
+      // Définir des valeurs par défaut en cas d'erreur
+      setStats({
+        totalDefis: { 
+          value: defis.length, 
+          change: `${defis.length} total`, 
+          trend: 'up' 
+        },
+        utilisateurs: { 
+          value: utilisateurs.length || 0,
+          change: `${utilisateurs.length} total`, 
+          trend: 'up' 
+        },
+        preuvesAttente: { 
+          value: 0, 
+          change: 'À valider', 
+          trend: 'warning' 
+        },
+        groupesActifs: { 
+          value: groupes.length || 0,
+          change: `${groupes.length} total`, 
+          trend: 'up' 
+        }
+      });
     }
   };
 
   // Mettre à jour les stats quand les données changent
   useEffect(() => {
-    if (utilisateurs.length > 0 || groupes.length > 0) {
+    if (defis.length > 0 || utilisateurs.length > 0 || groupes.length > 0 || recompenses.length > 0) {
       loadStats();
     }
-  }, [utilisateurs, groupes]);
+  }, [defis, utilisateurs, groupes, recompenses]);
 
   // Fonction pour charger les preuves en attente
   const loadPendingProofs = async () => {
@@ -768,11 +819,8 @@ const AdminDashboardNew = () => {
       const newReward = {
         name: rewardForm.name,
         description: rewardForm.description,
-        points: parseInt(rewardForm.points),
-        category: rewardForm.category || 'Général',
-        image: rewardForm.image || '🎁',
-        rarity: rewardForm.rarity,
-        status: rewardForm.status
+        pointsRequired: parseInt(rewardForm.points),
+        stock: parseInt(rewardForm.stock) || 1
       };
 
       // Utiliser le service dédié
@@ -2940,10 +2988,10 @@ const AdminDashboardNew = () => {
 
               {/* Contenu de la preuve */}
               <div>
-                <h3 className="font-semibold text-gray-800 mb-3">Contenu de la preuve</h3>
+                <h3 className="font-semibold text-gray-800 mb-3">Contenu</h3>
                 <div className="bg-gray-50 rounded-xl p-4">
                   {selectedProof.type === 'text' ? (
-                    <p className="text-gray-700 whitespace-pre-wrap">{selectedProof.content}</p>
+                    <div className="text-gray-700">{selectedProof.content}</div>
                   ) : selectedProof.type === 'image' ? (
                     <img 
                       src={getFileUrl(selectedProof.content)} 
@@ -3006,6 +3054,15 @@ const AdminDashboardNew = () => {
           </div>
         </div>
       )}
+
+      {/* Modal de création de récompense */}
+      <CreateRewardModal 
+        isOpen={showCreateRewardModal}
+        onClose={() => setShowCreateRewardModal(false)}
+        rewardForm={rewardForm}
+        setRewardForm={setRewardForm}
+        onSubmit={handleCreateReward}
+      />
     </div>
   );
 };

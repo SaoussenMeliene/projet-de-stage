@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../lib/axios";                  // ⚠️ instance axios
 import ChallengeCard from "../components/ChallengeCard"; // ⚠️ carte défi
 import { proofService } from "../services/proofService";
+import { fetchUserStats, calculateBadges } from "../services/userStatsService";
 
 /** Utilitaire: marche avec ou sans interceptor qui renvoie response.data */
 const unwrap = (r) => (r && typeof r === "object" && "data" in r ? r.data : r);
@@ -55,6 +56,16 @@ export default function DashboardChallengeModern() {
   });
 
   const [userProofs, setUserProofs] = useState([]);
+  
+  // États pour les vraies statistiques utilisateur
+  const [userStats, setUserStats] = useState({
+    totalPoints: 0,
+    challengesCompleted: 0,
+    currentStreak: 0,
+    badges: [],
+    weeklyGrowth: 0
+  });
+  const [pendingProofs, setPendingProofs] = useState([]);
 
   const status = useMemo(() => activeTab, [activeTab]);
 
@@ -89,18 +100,47 @@ export default function DashboardChallengeModern() {
   useEffect(() => {
     (async () => {
       try {
-        // Charger les stats
+        // Charger les stats des défis
         const data = unwrap(await api.get("/challenges/stats"));
         setStats(data);
+        
+        // Charger les statistiques utilisateur réelles
+        try {
+          const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+          if (token) {
+            const realUserStats = await fetchUserStats(token);
+            
+            // Calculer la croissance hebdomadaire (simulation basée sur les données)
+            const weeklyGrowth = Math.max(0, Math.min(50, realUserStats.currentStreak * 3));
+            
+            setUserStats({
+              ...realUserStats,
+              weeklyGrowth
+            });
+            
+            console.log('📊 Statistiques utilisateur chargées:', realUserStats);
+          } else {
+            console.log('ℹ️ Utilisateur non connecté, utilisation de stats vides');
+          }
+        } catch (userStatsError) {
+          console.log('ℹ️ Impossible de charger les statistiques utilisateur, utilisation de stats vides');
+        }
         
         // Charger les preuves de l'utilisateur
         try {
           const proofsResponse = await proofService.getMyProofs();
-          setUserProofs(proofsResponse.proofs || []);
-          console.log(`📋 ${proofsResponse.proofs?.length || 0} preuves chargées pour l'utilisateur`);
+          const proofs = proofsResponse.proofs || [];
+          setUserProofs(proofs);
+          
+          // Identifier les preuves en attente de validation
+          const pending = proofs.filter(proof => proof.status === 'pending' || proof.status === 'submitted');
+          setPendingProofs(pending);
+          
+          console.log(`📋 ${proofs.length} preuves chargées pour l'utilisateur (${pending.length} en attente)`);
         } catch (proofsError) {
           console.log('ℹ️ Impossible de charger les preuves (utilisateur non connecté?)');
           setUserProofs([]);
+          setPendingProofs([]);
         }
       } catch (e) {
         console.error("stats error", e);
@@ -199,16 +239,41 @@ export default function DashboardChallengeModern() {
           <div className="flex items-center gap-6 text-sm">
             <div className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-green-500" />
-              <span className="text-gray-600">+15% cette semaine</span>
+              <span className="text-gray-600">
+                {userStats.weeklyGrowth > 0 
+                  ? `+${userStats.weeklyGrowth}% cette semaine`
+                  : userStats.currentStreak > 0 
+                    ? `${userStats.currentStreak} jours de série`
+                    : 'Commencez votre aventure!'
+                }
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <Award className="w-4 h-4 text-yellow-500" />
-              <span className="text-gray-600">3 badges débloqués</span>
+              <span className="text-gray-600">
+                {userStats.badges.length > 0 
+                  ? `${userStats.badges.length} badge${userStats.badges.length > 1 ? 's' : ''} débloqué${userStats.badges.length > 1 ? 's' : ''}`
+                  : 'Aucun badge pour l\'instant'
+                }
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-blue-500" />
-              <span className="text-gray-600">2 défis actifs</span>
+              <span className="text-gray-600">
+                {stats.active > 0 
+                  ? `${stats.active} défi${stats.active > 1 ? 's' : ''} actif${stats.active > 1 ? 's' : ''}`
+                  : 'Aucun défi actif'
+                }
+              </span>
             </div>
+            {pendingProofs.length > 0 && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-yellow-50 rounded-full border border-yellow-200">
+                <span className="text-yellow-600">🟡</span>
+                <span className="text-yellow-700 font-medium">
+                  {pendingProofs.length} preuve{pendingProofs.length > 1 ? 's' : ''} — en attente de validation
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

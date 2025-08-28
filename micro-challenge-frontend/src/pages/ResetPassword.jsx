@@ -81,13 +81,15 @@ const ResetPassword = () => {
   const canSubmit = validation.length && validation.match;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-green-100 to-blue-100 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-100 to-purple-100 px-4">
+
       <ToastContainer />
       <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <FiLock className="text-green-600" size={24} />
-          </div>
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+  <FiLock className="text-blue-600" size={24} />
+</div>
+
           
           <h1 className="text-2xl font-bold text-gray-800 mb-2">
             Nouveau mot de passe
@@ -183,7 +185,8 @@ const ResetPassword = () => {
           <button
             type="submit"
             disabled={loading || !canSubmit}
-            className="w-full bg-green-500 text-white py-3 rounded-xl font-semibold hover:bg-green-600 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+           className="w-full bg-blue-500 text-white py-3 rounded-xl font-semibold hover:bg-blue-600 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+
           >
             {loading ? (
               <div className="flex items-center justify-center gap-2">

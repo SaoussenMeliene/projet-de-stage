@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import HeaderDashboard from "../components/HeaderDashboard";
+import CreateRewardModal from "../components/CreateRewardModal";
 import { useTheme } from "../contexts/ThemeContext";
+import rewardService from "../services/rewardService";
 import {
   Trophy,
   Recycle,
@@ -21,7 +23,9 @@ import {
   TrendingUp,
   Calendar,
   Clock,
-  Sparkles
+  Sparkles,
+  Plus,
+  Crown
 } from "lucide-react";
 
 const Recompenses = () => {
@@ -35,6 +39,9 @@ const Recompenses = () => {
   const [claimedRewards, setClaimedRewards] = useState([]);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [realRewards, setRealRewards] = useState([]);
   const { isDark } = useTheme();
 
   useEffect(() => {
@@ -56,6 +63,25 @@ const Recompenses = () => {
 
       console.log('🔄 Récupération des données de récompenses...');
       
+      // Vérifier le rôle de l'utilisateur
+      const userResponse = await fetch('/api/users/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        setIsAdmin(userData.user?.role === 'admin');
+      }
+
+      // Récupérer les vraies récompenses depuis l'API
+      const rewardsResult = await rewardService.getRewards();
+      if (rewardsResult.success) {
+        setRealRewards(rewardsResult.rewards);
+        console.log('🎁 Récompenses réelles récupérées:', rewardsResult.rewards.length);
+      }
+      
       // Récupérer les participations de l'utilisateur
       const participationsResponse = await fetch('/api/participants/my-participations', {
         headers: {
@@ -70,47 +96,11 @@ const Recompenses = () => {
         console.log('📊 Participations récupérées:', participationsData.length);
       }
 
-      // Si aucune participation réelle, créer des données de démonstration
+      // Si aucune participation, GARDER les données vides (nouveau collaborateur)
       if (participationsData.length === 0) {
-        console.log('🎭 Création de données de démonstration pour les récompenses');
-        participationsData = [
-          {
-            _id: 'demo-part-1',
-            status: 'confirmé',
-            score: 92,
-            joinedAt: new Date('2024-01-15'),
-            challenge: {
-              _id: 'demo-ch-1',
-              title: 'Défi Écologique',
-              category: 'Environnement',
-              endDate: new Date('2024-01-25')
-            }
-          },
-          {
-            _id: 'demo-part-2',
-            status: 'confirmé',
-            score: 85,
-            joinedAt: new Date('2024-01-20'),
-            challenge: {
-              _id: 'demo-ch-2',
-              title: 'Challenge Sport',
-              category: 'Bien-être',
-              endDate: new Date('2024-02-05')
-            }
-          },
-          {
-            _id: 'demo-part-3',
-            status: 'en attente',
-            score: 65,
-            joinedAt: new Date('2024-01-25'),
-            challenge: {
-              _id: 'demo-ch-3',
-              title: 'Défi Créatif',
-              category: 'Créativité',
-              endDate: new Date('2024-02-15')
-            }
-          }
-        ];
+        console.log('✨ Nouveau collaborateur sans participation - données vides conservées sur la page Récompenses');
+        // NE PAS créer de données de démonstration pour un vrai nouveau collaborateur
+        // participationsData reste un tableau vide []
       }
 
       // Calculer les statistiques utilisateur
@@ -122,6 +112,10 @@ const Recompenses = () => {
       const generatedBadges = generateBadges(participationsData, calculatedStats);
       setBadges(generatedBadges);
 
+      // NOTE: Plus besoin de filtrer les récompenses déjà échangées
+      // car les échanges multiples sont maintenant autorisés
+      setClaimedRewards([]);
+
       // Générer les récompenses disponibles
       const generatedRewards = generateRewards(calculatedStats.totalPoints);
       setRewards(generatedRewards);
@@ -129,8 +123,12 @@ const Recompenses = () => {
       console.log('✅ Données de récompenses chargées:', {
         points: calculatedStats.totalPoints,
         badges: generatedBadges.length,
-        rewards: generatedRewards.length
+        rewards: generatedRewards.length,
+        note: 'Échanges multiples autorisés'
       });
+      
+      console.log('🏆 Badges débloqués (Récompenses):', generatedBadges.filter(b => b.unlocked).map(b => b.name));
+      console.log('📊 Badges débloqués vs Total:', `${generatedBadges.filter(b => b.unlocked).length} / ${generatedBadges.length}`);
 
     } catch (error) {
       console.error('❌ Erreur lors de la récupération des données de récompenses:', error);
@@ -298,6 +296,58 @@ const Recompenses = () => {
         current: stats.participationStreak,
         total: 7,
         category: "Régularité"
+      },
+      {
+        id: 7,
+        name: "Débutant",
+        description: "Complétez votre premier défi",
+        icon: Trophy,
+        color: "from-green-400 to-blue-500",
+        progress: Math.min(100, (stats.completedChallenges / 1) * 100),
+        unlocked: stats.completedChallenges >= 1,
+        requirement: "1 défi terminé",
+        current: stats.completedChallenges,
+        total: 1,
+        category: "Progression"
+      },
+      {
+        id: 8,
+        name: "Expert",
+        description: "Complétez 5 défis au total",
+        icon: Crown,
+        color: "from-orange-400 to-red-500",
+        progress: Math.min(100, (stats.completedChallenges / 5) * 100),
+        unlocked: stats.completedChallenges >= 5,
+        requirement: "5 défis terminés",
+        current: stats.completedChallenges,
+        total: 5,
+        category: "Progression"
+      },
+      {
+        id: 9,
+        name: "Légende",
+        description: "Atteignez 10 défis complétés",
+        icon: Crown,
+        color: "from-purple-400 to-pink-500",
+        progress: Math.min(100, (stats.completedChallenges / 10) * 100),
+        unlocked: stats.completedChallenges >= 10,
+        requirement: "10 défis terminés",
+        current: stats.completedChallenges,
+        total: 10,
+        category: "Progression"
+      },
+      {
+        id: 10,
+        name: "Collectionneur de Points",
+        description: "Accumulez 500 points",
+        icon: Sparkles,
+        color: "from-yellow-400 to-amber-500",
+        progress: Math.min(100, (stats.totalPoints / 500) * 100),
+        unlocked: stats.totalPoints >= 500,
+        requirement: "500 points",
+        current: stats.totalPoints,
+        total: 500,
+        category: "Points"
       }
     ];
   };
@@ -380,6 +430,23 @@ const Recompenses = () => {
     ];
   };
 
+  // Gérer la création d'une récompense (admin uniquement)
+  const handleRewardCreated = async (newReward) => {
+    console.log('✅ Nouvelle récompense créée:', newReward);
+    
+    // Recharger les récompenses pour inclure la nouvelle
+    const rewardsResult = await rewardService.getRewards();
+    if (rewardsResult.success) {
+      setRealRewards(rewardsResult.rewards);
+      console.log('🔄 Liste des récompenses mise à jour');
+    }
+    
+    // Notification de succès
+    setToastMessage(`Récompense "${newReward.name}" créée avec succès !`);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 5000);
+  };
+
   // Gérer l'échange de récompenses
   const handleClaimReward = async (reward) => {
     if (userPoints < reward.points || !reward.available) {
@@ -389,26 +456,51 @@ const Recompenses = () => {
     try {
       console.log(`🎁 Tentative d'échange de la récompense: ${reward.name}`);
       
-      // Simuler l'API d'échange (en attendant une vraie API)
-      const newPoints = userPoints - reward.points;
-      setUserPoints(newPoints);
-      setClaimedRewards([...claimedRewards, reward.id]);
-      
-      // Notification de succès
-      setToastMessage(`🎉 Félicitations ! Vous avez échangé "${reward.name}" pour ${reward.points} points !`);
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 5000);
-      
-      console.log(`✅ Récompense échangée avec succès. Points restants: ${newPoints}`);
+      // Utiliser la vraie API d'échange
+      const result = await rewardService.claimReward({
+        rewardId: reward.id,
+        rewardName: reward.name,
+        rewardDescription: reward.description,
+        pointsRequired: reward.points
+      });
+
+      if (result.success) {
+        // Mettre à jour l'interface utilisateur
+        setUserPoints(result.data.remainingPoints);
+        // NOTE: Plus besoin d'ajouter à claimedRewards car les échanges multiples sont maintenant autorisés
+        
+        // Notification de succès
+        setToastMessage(result.message);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 5000);
+        
+        console.log(`✅ Récompense échangée avec succès. Points restants: ${result.data.remainingPoints}`);
+      } else {
+        throw new Error(result.error);
+      }
       
     } catch (error) {
       console.error('❌ Erreur lors de l\'échange de la récompense:', error);
-      alert('❌ Erreur lors de l\'échange. Veuillez réessayer.');
+      let errorMessage = 'Une erreur inconnue s\'est produite';
+      
+      if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error && typeof error === 'object') {
+        if (error.message) {
+          errorMessage = error.message;
+        } else if (error.error) {
+          errorMessage = error.error;
+        } else if (error.toString && typeof error.toString === 'function') {
+          errorMessage = error.toString();
+        }
+      }
+      
+      alert(`❌ Erreur lors de l'échange: ${errorMessage}`);
     }
   };
 
-  // Filtrer les récompenses non réclamées
-  const availableRewards = rewards.filter(reward => !claimedRewards.includes(reward.id));
+  // Toutes les récompenses sont maintenant disponibles (échanges multiples autorisés)
+  const availableRewards = rewards;
 
   if (loading) {
     return (

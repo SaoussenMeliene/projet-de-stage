@@ -4,8 +4,8 @@ export const notificationService = {
   // Obtenir les notifications de l'utilisateur connecté
   async getMyNotifications() {
     try {
-      const response = await api.get('/notifications');
-      return response;
+      const data = await api.get('/notifications');
+      return { data }; // Wrap dans un objet pour maintenir la compatibilité
     } catch (error) {
       console.error('Erreur lors de la récupération des notifications:', error);
       throw error;
@@ -15,8 +15,8 @@ export const notificationService = {
   // Marquer une notification comme lue
   async markAsRead(notificationId) {
     try {
-      const response = await api.patch(`/notifications/${notificationId}/read`);
-      return response;
+      const data = await api.patch(`/notifications/${notificationId}/read`);
+      return { data }; // Wrap dans un objet pour maintenir la compatibilité
     } catch (error) {
       console.error('Erreur lors du marquage de la notification:', error);
       throw error;

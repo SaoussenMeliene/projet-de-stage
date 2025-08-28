@@ -80,7 +80,7 @@ export default function HomePage() {
       role: "Responsable RH",
       company: "TechCorp",
       content: "Satoripop Challenges a révolutionné l'engagement de nos équipes. Les micro-défis créent une dynamique incroyable !",
-      avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face",
+      avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face",
       rating: 5
     },
     {
@@ -482,7 +482,7 @@ export default function HomePage() {
           <div className="border-t border-gray-800 pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center">
               <p className="text-gray-400 text-sm">
-                © 2024 Satoripop Challenges. Tous droits réservés.
+                © 2025 Satoripop Challenges. Tous droits réservés.
               </p>
               <div className="flex items-center gap-6 mt-4 md:mt-0">
                 <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors duration-200">

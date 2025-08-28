@@ -25,6 +25,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 
 import ChallengeDetail from "./pages/ChallengeDetail";
 import EditChallengePage from "./pages/EditChallengePage";
+import NotificationTestPage from "./pages/NotificationTestPage";
 
 
 const App = () => {
@@ -62,6 +63,7 @@ const App = () => {
         } />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/test-notifications" element={<NotificationTestPage />} />
        </Routes>
     </div>
   );

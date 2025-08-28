@@ -68,42 +68,29 @@ const MesDefis = () => {
         let participationsData = participationsResult?.participations || [];
         console.log('📊 Participations récupérées:', participationsData);
 
-        // Si aucune participation, créer des données de démonstration
+        // Si aucune participation, GARDER les données vides (nouveau collaborateur)
         if (participationsData.length === 0) {
-          console.log('🎭 Aucune participation trouvée, création de données de démonstration');
-          participationsData = [
-            {
-              status: 'confirmé',
-              score: 85,
-              proof: { _id: 'demo1' },
-              challenge: { title: 'Défi Écologique', category: 'Environnement' }
-            },
-            {
-              status: 'en attente',
-              score: 0,
-              challenge: { title: 'Challenge Sport', category: 'Bien-être' }
-            },
-            {
-              status: 'confirmé',
-              score: 92,
-              proof: { _id: 'demo2' },
-              challenge: { title: 'Défi Lecture', category: 'Éducation' }
-            },
-            {
-              status: 'en attente',
-              score: 0,
-              challenge: { title: 'Méditation Mindfulness', category: 'Bien-être' }
-            }
-          ];
+          console.log('✨ Nouveau collaborateur sans participation - données vides conservées');
+          // NE PAS créer de données de démonstration pour un vrai nouveau collaborateur
+          // participationsData reste un tableau vide []
         }
 
-        // Utiliser l'API de statistiques pour avoir des données cohérentes avec la page de profil
-        const apiStats = await fetchUserStats(token);
-        
-        // Calculer les statistiques locales basées sur les participations
+        // Calculer les statistiques RÉELLES basées sur les participations
         const activeDefis = participationsData.filter(p => p.status === 'en attente' || p.status === 'confirmé').length;
-        const completedDefis = participationsData.filter(p => p.status === 'confirmé' && p.proof).length;
+        const completedDefis = participationsData.filter(p => p.status === 'confirmé').length;
         const collaborations = participationsData.length;
+        
+        // Calculer les VRAIS points basés sur les participations réelles
+        let totalPoints = 0;
+        participationsData.forEach(p => {
+          if (p.status === 'confirmé') {
+            const basePoints = 100; // Points de base par défi terminé
+            const bonusPoints = p.score > 80 ? 50 : p.score > 60 ? 25 : 0; // Bonus selon le score
+            totalPoints += basePoints + bonusPoints;
+          } else if (p.status === 'en attente') {
+            totalPoints += 25; // Points partiels pour participation active
+          }
+        });
         
         // Score moyen basé sur les participations réelles
         let totalScore = 0;
@@ -125,18 +112,75 @@ const MesDefis = () => {
 
         const averageScore = scoreCount > 0 ? Math.round(totalScore / scoreCount) : 0;
 
+        // Calculer les badges basés sur les vraies statistiques (cohérence avec Recompenses.jsx)
+        const envChallenges = participationsData.filter(p => 
+          p.challenge?.category?.toLowerCase().includes('environnement') && p.status === 'confirmé'
+        ).length;
+
+        const wellnessChallenges = participationsData.filter(p => 
+          (p.challenge?.category?.toLowerCase().includes('bien-être') || 
+           p.challenge?.category?.toLowerCase().includes('sport')) && p.status === 'confirmé'
+        ).length;
+
+        const creativeChallenges = participationsData.filter(p => 
+          (p.challenge?.category?.toLowerCase().includes('créat') ||
+           p.challenge?.category?.toLowerCase().includes('art')) && p.status === 'confirmé'
+        ).length;
+
+        const highScoreChallenges = participationsData.filter(p => 
+          p.status === 'confirmé' && p.score && p.score >= 80
+        ).length;
+
+        const badges = [];
+        // Badge Eco-Warrior
+        if (envChallenges >= 3) badges.push({ name: 'Eco-Warrior', unlocked: true });
+        
+        // Badge Champion du Bien-être  
+        if (wellnessChallenges >= 2) badges.push({ name: 'Champion du Bien-être', unlocked: true });
+        
+        // Badge Artiste Créatif
+        if (creativeChallenges >= 2) badges.push({ name: 'Artiste Créatif', unlocked: true });
+        
+        // Badge Perfectionniste
+        if (highScoreChallenges >= 2) badges.push({ name: 'Perfectionniste', unlocked: true });
+        
+        // Badge Débutant
+        if (completedDefis >= 1) badges.push({ name: 'Débutant', unlocked: true });
+        
+        // Badge Expert
+        if (completedDefis >= 5) badges.push({ name: 'Expert', unlocked: true });
+        
+        // Badge Légende
+        if (completedDefis >= 10) badges.push({ name: 'Légende', unlocked: true });
+        
+        // Badge Points Collector
+        if (totalPoints >= 500) badges.push({ name: 'Collectionneur de Points', unlocked: true });
+        
+        // Badge Participant Assidu
+        if (participationsData.length >= 5) badges.push({ name: 'Participant Assidu', unlocked: true });
+        
+        // Badge Série Gagnante (basé sur les participations récentes)
+        const calculateStreak = (participations) => {
+          const sortedParticipations = participations
+            .sort((a, b) => new Date(b.joinedAt) - new Date(a.joinedAt));
+          return Math.min(sortedParticipations.length, 7);
+        };
+        const participationStreak = calculateStreak(participationsData);
+        if (participationStreak >= 7) badges.push({ name: 'Série Gagnante', unlocked: true });
+
         const calculatedStats = {
           userName: userData.username || userData.email?.split('@')[0] || 'Utilisateur',
           activeDefis: activeDefis,
-          completedDefis: apiStats.challengesCompleted, // Utiliser les vraies données de l'API
-          badges: apiStats.badges.length,
+          completedDefis: completedDefis, // Utiliser les VRAIES données calculées
+          badges: badges.length,
           averageScore: averageScore,
           collaborations: collaborations,
-          totalPoints: apiStats.totalPoints, // Utiliser les vraies données de l'API - IMPORTANT
+          totalPoints: totalPoints, // Utiliser les VRAIS points calculés - CORRIGÉ!
           lastLogin: userData.lastLogin || userData.updatedAt
         };
 
         console.log('📈 Statistiques calculées:', calculatedStats);
+        console.log('🏆 Badges débloqués (Dashboard):', badges.map(b => b.name));
         setUserStats(calculatedStats);
 
       } else {
@@ -145,15 +189,16 @@ const MesDefis = () => {
       }
     } catch (error) {
       console.error('❌ Erreur lors du chargement des données utilisateur:', error);
-      // Données par défaut réalistes basées sur un utilisateur actif
+      
+      // Données par défaut pour NOUVEAU collaborateur (pas d'activité)
       const defaultStats = {
         userName: JSON.parse(localStorage.getItem('user') || '{}').username || 'Collaborateur',
-        activeDefis: 3, // 3 défis en cours
-        completedDefis: 2, // 2 défis terminés
-        badges: 2, // 2 badges gagnés
-        averageScore: 88, // Score moyen de 88%
-        collaborations: 5, // 5 collaborations total
-        totalPoints: 375 // Points calculés (2*100 + 3*25 + bonus)
+        activeDefis: 0, // Nouveau collaborateur n'a aucun défi actif
+        completedDefis: 0, // Nouveau collaborateur n'a terminé aucun défi
+        badges: 0, // Nouveau collaborateur n'a aucun badge
+        averageScore: 0, // Nouveau collaborateur n'a pas encore de score
+        collaborations: 0, // Nouveau collaborateur n'a aucune collaboration
+        totalPoints: 0 // Nouveau collaborateur n'a aucun point - CORRIGÉ!
       };
       
       console.log('🔄 Utilisation de données par défaut réalistes:', defaultStats);
@@ -321,9 +366,9 @@ const MesDefis = () => {
                     <span className="text-purple-800 font-medium">Niveau</span>
                   </div>
                   <div className="text-2xl font-bold text-purple-900">
-                    {userStats.averageScore >= 80 ? 'Expert' : userStats.averageScore >= 60 ? 'Avancé' : userStats.averageScore >= 30 ? 'Intermédiaire' : 'Débutant'}
+                    {userStats.totalPoints >= 1000 ? '🔥 Expert' : userStats.totalPoints >= 500 ? '🚀 Avancé' : userStats.totalPoints >= 250 ? '📈 Intermédiaire' : '🌱 Débutant'}
                   </div>
-                  <div className="text-purple-600 text-sm">Basé sur votre score</div>
+                  <div className="text-purple-600 text-sm">Basé sur vos points totaux</div>
                 </div>
               </div>
             </div>

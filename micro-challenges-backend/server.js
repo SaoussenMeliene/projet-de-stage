@@ -308,6 +308,8 @@ app.use("/api/polls", pollRoutes);
 const rewardCatalogRoutes = require("./Routes/rewardCatalog.routes");
 app.use("/api/reward-catalog", rewardCatalogRoutes);
 
+const userRewardRoutes = require("./Routes/userReward.routes");
+app.use("/api/user-rewards", userRewardRoutes);
 
 app.get('/', (req, res) => {
   res.send('🚀 API Micro-Challenges opérationnelle');
