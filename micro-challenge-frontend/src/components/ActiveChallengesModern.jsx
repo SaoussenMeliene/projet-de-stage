@@ -59,56 +59,12 @@ export default function ActiveChallengesModern() {
         
         console.log('📊 Participations récupérées:', participationsData);
 
-        // Si aucune participation réelle, utiliser des données de démonstration
+        // Si aucune participation réelle, garder la liste vide pour afficher l'état vide
         if (participationsData.length === 0) {
-          console.log('🎭 Création de participations de démonstration');
-          participationsData = [
-            {
-              _id: 'demo1',
-              status: 'en attente',
-              score: 65,
-              joinedAt: new Date('2024-01-20'),
-              challenge: {
-                _id: 'challenge1',
-                title: 'Défi zéro déchet',
-                description: 'Réduisez vos déchets au maximum pendant une semaine complète et documentez votre progression.',
-                category: 'Environnement',
-                startDate: new Date('2024-01-20'),
-                endDate: new Date('2024-01-27'),
-                image: null
-              }
-            },
-            {
-              _id: 'demo2',
-              status: 'confirmé',
-              score: 30,
-              joinedAt: new Date('2024-01-25'),
-              challenge: {
-                _id: 'challenge2',
-                title: 'Challenge Sport Quotidien',
-                description: '30 minutes d\'exercice par jour pendant 3 semaines. Documentez votre progression.',
-                category: 'Bien-être',
-                startDate: new Date('2024-01-25'),
-                endDate: new Date('2024-02-15'),
-                image: null
-              }
-            },
-            {
-              _id: 'demo3',
-              status: 'en attente',
-              score: 15,
-              joinedAt: new Date('2024-01-28'),
-              challenge: {
-                _id: 'challenge3',
-                title: 'Méditation Mindfulness',
-                description: '10 minutes de méditation quotidienne pour améliorer votre bien-être mental.',
-                category: 'Bien-être',
-                startDate: new Date('2024-01-28'),
-                endDate: new Date('2024-02-28'),
-                image: null
-              }
-            }
-          ];
+          console.log('🎯 Aucune participation trouvée - affichage de l\'état vide');
+          setActiveChallenges([]);
+          setLoading(false);
+          return;
         }
 
         // Filtrer les défis actifs (en attente ou confirmé)
@@ -303,8 +259,8 @@ export default function ActiveChallengesModern() {
               {loading ? "Chargement..." : `Progression moyenne: ${calculateAverageProgress()}%`}
             </span>
           </div>
-          {!loading && activeChallenges.length > 0 && (
-            <div className="flex items-center gap-2 text-blue-600">
+          {!loading && (
+            <div className={`flex items-center gap-2 ${activeChallenges.length > 0 ? 'text-blue-600' : 'text-gray-500'}`}>
               <Target className="w-4 h-4" />
               <span>{activeChallenges.length} défi{activeChallenges.length > 1 ? 's' : ''} actif{activeChallenges.length > 1 ? 's' : ''}</span>
             </div>
@@ -328,26 +284,76 @@ export default function ActiveChallengesModern() {
           ))}
         </div>
       ) : activeChallenges.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Target className="w-12 h-12 text-gray-400" />
+        <div className="text-center py-16">
+          <div className="relative w-32 h-32 mx-auto mb-8">
+            {/* Cercles animés en arrière-plan */}
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-100 to-cyan-100 rounded-full animate-pulse"></div>
+            <div className="absolute inset-2 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-full animate-pulse delay-75"></div>
+            <div className="absolute inset-4 bg-white rounded-full flex items-center justify-center shadow-lg">
+              <Target className="w-16 h-16 text-gray-400" />
+            </div>
           </div>
-          <h3 className="text-xl font-semibold text-gray-800 mb-2">Aucun défi actif</h3>
-          <p className="text-gray-600 mb-6">Rejoignez un défi pour commencer votre aventure !</p>
-          <button
-            onClick={() => {
-              // Scroll vers la section des défis dans la page actuelle
-              const challengeSection = document.querySelector('[data-section="challenge-dashboard"]');
-              if (challengeSection) {
-                challengeSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              } else {
-                navigate('/mes-defis');
-              }
-            }}
-            className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold py-3 px-6 rounded-xl hover:shadow-lg transition-all duration-300"
-          >
-            Découvrir les défis
-          </button>
+          
+          <div className="max-w-md mx-auto">
+            <h3 className="text-2xl font-bold text-gray-800 mb-4">0 défis actifs</h3>
+            <p className="text-gray-600 mb-2 text-lg">Vous n'avez rejoint aucun défi pour le moment.</p>
+            <p className="text-gray-500 mb-8 text-sm">
+              Explorez les défis disponibles et rejoignez ceux qui vous inspirent pour commencer à gagner des points !
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button
+                onClick={() => {
+                  // Scroll vers la section des défis dans la page actuelle
+                  const challengeSection = document.querySelector('[data-section="challenge-dashboard"]');
+                  if (challengeSection) {
+                    challengeSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  } else {
+                    navigate('/mes-defis');
+                  }
+                }}
+                className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold py-3 px-8 rounded-xl hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2"
+              >
+                <Target className="w-5 h-5" />
+                Découvrir les défis
+              </button>
+              
+              <button
+                onClick={() => navigate('/comment-ca-marche')}
+                className="bg-white text-gray-700 border-2 border-gray-200 font-semibold py-3 px-8 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 flex items-center justify-center gap-2"
+              >
+                <Eye className="w-5 h-5" />
+                Comment ça marche ?
+              </button>
+            </div>
+          </div>
+          
+          {/* Stats inspirantes */}
+          <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-2xl mx-auto">
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-4 text-center">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Leaf className="w-6 h-6 text-green-600" />
+              </div>
+              <div className="text-2xl font-bold text-green-700 mb-1">50+</div>
+              <div className="text-sm text-green-600">Défis écologiques</div>
+            </div>
+            
+            <div className="bg-gradient-to-br from-pink-50 to-red-50 rounded-2xl p-4 text-center">
+              <div className="w-12 h-12 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Heart className="w-6 h-6 text-pink-600" />
+              </div>
+              <div className="text-2xl font-bold text-pink-700 mb-1">30+</div>
+              <div className="text-sm text-pink-600">Défis bien-être</div>
+            </div>
+            
+            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-4 text-center">
+              <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Award className="w-6 h-6 text-indigo-600" />
+              </div>
+              <div className="text-2xl font-bold text-indigo-700 mb-1">1000+</div>
+              <div className="text-sm text-indigo-600">Points à gagner</div>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">

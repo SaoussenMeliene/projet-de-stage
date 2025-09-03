@@ -21,8 +21,9 @@ const userSchema = new mongoose.Schema({
   bio: { type: String, trim: true }, // Biographie/description
   profileImage: { type: String }, // URL ou chemin vers l'image de profil
   role: { type: String, enum: ['admin', 'collaborateur'], default: 'collaborateur' },
+  points: { type: Number, default: 0 }, // Points pour les récompenses
   resetPasswordToken: { type: String },
   resetPasswordExpires: { type: Date }
 }, { timestamps: true });
 
-module.exports = mongoose.model("User", userSchema);
+module.exports = mongoose.models.User || mongoose.model("User", userSchema);

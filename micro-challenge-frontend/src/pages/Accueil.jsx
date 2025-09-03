@@ -1,16 +1,33 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import HeaderDashboard from "../components/HeaderDashboard";
-
 import { Link } from 'react-router-dom';
 import DashboardStatsAdvanced from "../components/DashboardStatsAdvanced";
 import DefisRecentsModern from "../components/DefisRecentsModern";
+import RewardsSection from "../components/RewardsSection";
 import { useTheme } from "../contexts/ThemeContext";
-
-
-
+import { api } from "../lib/axios";
 
 const Accueil = () => {
   const { isDark } = useTheme();
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    fetchUserData();
+  }, []);
+
+  const fetchUserData = async () => {
+    try {
+      const response = await api.get('/users/me');
+      setUser(response.data.user);
+    } catch (error) {
+      console.error('Erreur récupération utilisateur:', error);
+    }
+  };
+
+  const handlePointsUpdate = () => {
+    // Recharger les données utilisateur après un échange de récompense
+    fetchUserData();
+  };
   
   return (
     <div className={`min-h-screen transition-colors duration-300 ${
@@ -37,15 +54,20 @@ const Accueil = () => {
 
 
      {/* Statistiques */}
+     <DashboardStatsAdvanced />
 
-<DashboardStatsAdvanced />
+     {/* Section Récompenses */}
+     <div className="px-8 pb-8">
+       {user && (
+         <RewardsSection 
+           userPoints={user.points || 0} 
+           onPointsUpdate={handlePointsUpdate}
+         />
+       )}
+     </div>
 
-
-        {/* Défis récents */}
-      
-       {/* Grille des défis */}
-
-   <DefisRecentsModern />
+     {/* Défis récents */}
+     <DefisRecentsModern />
     </div>
  
   );

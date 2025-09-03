@@ -21,9 +21,11 @@ import {
   BarChart3
 } from "lucide-react";
 import Logo from "../components/Logo";
+import VideoModal from "../components/VideoModal";
 export default function HomePage() {
   const [isVisible, setIsVisible] = useState(false);
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
+  const [showVideoModal, setShowVideoModal] = useState(false);
   const { isDark } = useTheme();
 
   useEffect(() => {
@@ -36,6 +38,8 @@ export default function HomePage() {
 
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+
 
   // Données des statistiques
   const stats = [
@@ -190,12 +194,13 @@ export default function HomePage() {
                 </button>
               </Link>
 
-              <Link to="/login">
-                <button className="group bg-white/80 backdrop-blur-sm border-2 border-gray-200 text-gray-700 px-8 py-4 rounded-2xl font-semibold text-lg hover:border-gray-300 transition-all duration-300 transform hover:scale-105 flex items-center gap-3">
-                  <Play className="w-5 h-5" />
-                  <span>Voir la démonstration</span>
-                </button>
-              </Link>
+              <button 
+                onClick={() => setShowVideoModal(true)}
+                className="group bg-white/80 backdrop-blur-sm border-2 border-gray-200 text-gray-700 px-8 py-4 rounded-2xl font-semibold text-lg hover:border-gray-300 transition-all duration-300 transform hover:scale-105 flex items-center gap-3"
+              >
+                <Play className="w-5 h-5" />
+                <span>Voir la démonstration</span>
+              </button>
             </div>
 
             {/* Aperçu du dashboard */}
@@ -496,6 +501,50 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
+
+      {/* Modal Vidéo */}
+      <VideoModal
+        isOpen={showVideoModal}
+        onClose={() => setShowVideoModal(false)}
+        videoUrl="https://www.youtube.com/embed/dQw4w9WgXcQ"
+        videoType="youtube"
+        title="Découvrez Micro Challenges en action"
+        description="Voyez comment notre plateforme transforme l'engagement des collaborateurs grâce aux défis interactifs et au système de récompenses."
+      />
+      
+      {/* 
+        EXEMPLES D'UTILISATION DE LA MODAL VIDÉO :
+
+        1. Vidéo YouTube :
+        <VideoModal
+          isOpen={showVideoModal}
+          onClose={() => setShowVideoModal(false)}
+          videoUrl="https://www.youtube.com/embed/VOTRE_VIDEO_ID"
+          videoType="youtube"
+          title="Titre de votre vidéo"
+          description="Description de votre vidéo"
+        />
+
+        2. Vidéo Vimeo :
+        <VideoModal
+          isOpen={showVideoModal}
+          onClose={() => setShowVideoModal(false)}
+          videoUrl="https://player.vimeo.com/video/VOTRE_VIDEO_ID"
+          videoType="vimeo"
+          title="Titre de votre vidéo"
+          description="Description de votre vidéo"
+        />
+
+        3. Vidéo locale (placez le fichier dans /public/videos/) :
+        <VideoModal
+          isOpen={showVideoModal}
+          onClose={() => setShowVideoModal(false)}
+          videoUrl="/videos/demo.mp4"
+          videoType="local"
+          title="Titre de votre vidéo"
+          description="Description de votre vidéo"
+        />
+      */}
     </div>
   );
 }

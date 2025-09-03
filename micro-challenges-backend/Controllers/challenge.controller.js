@@ -16,7 +16,10 @@ function normalizeCategory(cat) {
     "Créatif": "créatif",
     "Sportif": "sportif", 
     "Éducatif": "éducatif",
-   
+    "Bien-être": "bien-être",
+    "Bien-etre": "bien-etre",
+    "bien-être": "bien-être",
+    "bien-etre": "bien-etre"
   };
   return m[cat] || cat;
 }

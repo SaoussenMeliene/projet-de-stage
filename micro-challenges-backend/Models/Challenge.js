@@ -8,7 +8,7 @@ const ChallengeSchema = new mongoose.Schema(
     // stocke un slug propre: 'ecologique', 'sportif', etc.
     category: {
       type: String,
-      enum: ['solidaire', 'écologique', 'créatif', 'sportif', 'éducatif', 'ecologique', 'creatif', 'educatif'],
+      enum: ['solidaire', 'écologique', 'créatif', 'sportif', 'éducatif', 'bien-être', 'ecologique', 'creatif', 'educatif', 'bien-etre'],
       required: true,
     },
     tags: [{ type: String }],

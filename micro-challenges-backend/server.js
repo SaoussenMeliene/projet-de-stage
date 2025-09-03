@@ -311,6 +311,9 @@ app.use("/api/reward-catalog", rewardCatalogRoutes);
 const userRewardRoutes = require("./Routes/userReward.routes");
 app.use("/api/user-rewards", userRewardRoutes);
 
+// Routes récompenses échangeables
+app.use("/api/rewards", require("./routes/reward.routes"));
+
 app.get('/', (req, res) => {
   res.send('🚀 API Micro-Challenges opérationnelle');
 });

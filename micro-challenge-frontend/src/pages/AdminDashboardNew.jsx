@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Users,
@@ -6,6 +6,7 @@ import {
   CheckCircle,
   UserCheck,
   Plus,
+  Edit,
   Edit3,
   Trash2,
   Eye,
@@ -21,7 +22,10 @@ import {
   Clock,
   AlertCircle,
   X,
-  Gift
+  Gift,
+  ShoppingCart,
+  Check,
+  XCircle
 } from "lucide-react";
 import HeaderDashboard from "../components/HeaderDashboard";
 import CreateChallengeModal from "../components/CreateChallengeModal";
@@ -136,6 +140,7 @@ const AdminDashboardNew = () => {
   const [categoryFilter, setCategoryFilter] = useState('Toutes les catégories');
   const [statusFilter, setStatusFilter] = useState('Tous les statuts');
   const [sortBy, setSortBy] = useState('recent');
+  const [editingReward, setEditingReward] = useState(null);
   
   // États pour les statistiques
   const [stats, setStats] = useState({
@@ -151,6 +156,10 @@ const AdminDashboardNew = () => {
   const [selectedProof, setSelectedProof] = useState(null);
   const [showProofModal, setShowProofModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // États pour les demandes d'échange de récompenses
+  const [rewardClaims, setRewardClaims] = useState([]);
+  const [claimsLoading, setClaimsLoading] = useState(false);
 
   // Fonction pour charger les défis
   const loadChallenges = async () => {
@@ -170,13 +179,13 @@ const AdminDashboardNew = () => {
         challengesData = responseData.data;
       }
       
-      // Mettre à jour les états
-      console.log(`📊 ${challengesData.length} défis chargés:`, challengesData);
+      // Mettre Ã  jour les états
+      console.log(`ðŸ“Š ${challengesData.length} défis chargés:`, challengesData);
       setDefis(challengesData);
       setFilteredDefis(challengesData);
       
     } catch (error) {
-      console.error('❌ Erreur chargement défis:', error);
+      console.error('âŒ Erreur chargement défis:', error);
       setDefis([]);
       setFilteredDefis([]);
     }
@@ -203,14 +212,14 @@ const AdminDashboardNew = () => {
       const recompensesActives = recompenses.filter(r => r.status === 'active').length;
       const totalObtentions = recompenses.reduce((total, r) => total + (r.obtentions || 0), 0);
       
-      // Mettre à jour les statistiques des récompenses
+      // Mettre Ã  jour les statistiques des récompenses
       setRewardStats({
         actives: recompensesActives,
         obtenues: totalObtentions,
         pointsDistribues: totalObtentions * 100 // Estimation basée sur les obtentions
       });
       
-      console.log('📊 Statistiques calculées:', {
+      console.log('ðŸ“Š Statistiques calculées:', {
         totalDefis,
         defisActifs,
         totalRecompenses,
@@ -242,7 +251,7 @@ const AdminDashboardNew = () => {
         }
       });
     } catch (error) {
-      console.error('❌ Erreur chargement statistiques:', error);
+      console.error('âŒ Erreur chargement statistiques:', error);
       // Définir des valeurs par défaut en cas d'erreur
       setStats({
         totalDefis: { 
@@ -269,7 +278,7 @@ const AdminDashboardNew = () => {
     }
   };
 
-  // Mettre à jour les stats quand les données changent
+  // Mettre Ã  jour les stats quand les données changent
   useEffect(() => {
     if (defis.length > 0 || utilisateurs.length > 0 || groupes.length > 0 || recompenses.length > 0) {
       loadStats();
@@ -282,9 +291,9 @@ const AdminDashboardNew = () => {
       setPreuveLoading(true);
       const response = await proofService.getPendingProofs();
       setPreuves(response.proofs || []);
-      console.log(`📊 ${response.proofs?.length || 0} preuves en attente chargées`);
+      console.log(`ðŸ“Š ${response.proofs?.length || 0} preuves en attente chargées`);
     } catch (error) {
-      console.error('❌ Erreur chargement preuves:', error);
+      console.error('âŒ Erreur chargement preuves:', error);
       setPreuves([]);
     } finally {
       setPreuveLoading(false);
@@ -319,7 +328,7 @@ const AdminDashboardNew = () => {
           const defiCategory = defi.category.trim().toLowerCase();
           const filterCategory = categoryFilter.trim().toLowerCase();
           
-          // Correspondance exacte (insensible à la casse)
+          // Correspondance exacte (insensible Ã  la casse)
           if (defiCategory === filterCategory) {
             return true;
           }
@@ -381,16 +390,16 @@ const AdminDashboardNew = () => {
 
   // Fonction pour supprimer un défi
   const handleDeleteChallenge = async (challengeId) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce défi ?')) {
+    if (!window.confirm('ÃŠtes-vous sÃ»r de vouloir supprimer ce défi ?')) {
       return;
     }
     
     try {
       await api.delete(`/challenges/${challengeId}`);
       await loadChallenges(); // Recharger la liste
-      console.log('✅ Défi supprimé avec succès');
+      console.log('âœ… Défi supprimé avec succès');
     } catch (error) {
-      console.error('❌ Erreur suppression défi:', error);
+      console.error('âŒ Erreur suppression défi:', error);
       alert('Erreur lors de la suppression du défi');
     }
   };
@@ -399,13 +408,13 @@ const AdminDashboardNew = () => {
   const loadUsers = async () => {
     try {
       setUserLoading(true);
-      console.log('🔄 Chargement des utilisateurs...');
+      console.log('ðŸ”„ Chargement des utilisateurs...');
       
       const response = await userService.getUsers();
       
       if (response.success) {
         const usersData = response.users || [];
-        console.log('👥 Utilisateurs reçus:', usersData);
+        console.log('ðŸ‘¥ Utilisateurs reÃ§us:', usersData);
         
         // Transformer les données si nécessaire
         const transformedUsers = Array.isArray(usersData) ? usersData.map(user => ({
@@ -426,7 +435,7 @@ const AdminDashboardNew = () => {
       }
       
     } catch (error) {
-      console.warn('⚠️ API utilisateurs non disponible, données factices utilisées');
+      console.warn('âš ï¸ API utilisateurs non disponible, données factices utilisées');
       // Utiliser des données factices si l'API n'est pas disponible
       const mockUsers = [
         {
@@ -516,7 +525,7 @@ const AdminDashboardNew = () => {
   // Fonction pour voir les détails d'un utilisateur
   const handleViewUser = (user) => {
     if (!user) {
-      console.error('❌ Utilisateur non défini pour handleViewUser');
+      console.error('âŒ Utilisateur non défini pour handleViewUser');
       return;
     }
     setSelectedUser(user);
@@ -526,7 +535,7 @@ const AdminDashboardNew = () => {
   // Fonction pour éditer un utilisateur
   const handleEditUser = (user) => {
     if (!user) {
-      console.error('❌ Utilisateur non défini pour handleEditUser');
+      console.error('âŒ Utilisateur non défini pour handleEditUser');
       return;
     }
     setSelectedUser(user);
@@ -542,7 +551,7 @@ const AdminDashboardNew = () => {
   // Fonction pour ouvrir les paramètres utilisateur
   const handleUserSettings = (user) => {
     if (!user) {
-      console.error('❌ Utilisateur non défini pour handleUserSettings');
+      console.error('âŒ Utilisateur non défini pour handleUserSettings');
       return;
     }
     setSelectedUser(user);
@@ -557,7 +566,7 @@ const AdminDashboardNew = () => {
       const response = await userService.updateUser(selectedUser.id, userEditForm);
       
       if (response.success) {
-        console.log('✅ Utilisateur modifié:', response.user);
+        console.log('âœ… Utilisateur modifié:', response.user);
         await loadUsers(); // Recharger la liste
         setShowEditUserModal(false);
         alert(response.message || 'Utilisateur modifié avec succès');
@@ -565,7 +574,7 @@ const AdminDashboardNew = () => {
         throw new Error(response.error || 'Erreur lors de la modification');
       }
     } catch (error) {
-      console.error('❌ Erreur modification utilisateur:', error);
+      console.error('âŒ Erreur modification utilisateur:', error);
       alert(`Erreur lors de la modification: ${error.message}`);
     } finally {
       setUserActionLoading(false);
@@ -580,14 +589,14 @@ const AdminDashboardNew = () => {
       const response = await userService.changeUserRole(userId, newRole);
       
       if (response.success) {
-        console.log('✅ Rôle modifié');
+        console.log('âœ… Rôle modifié');
         await loadUsers(); // Recharger la liste
         alert(response.message || 'Rôle modifié avec succès');
       } else {
         throw new Error(response.error || 'Erreur lors du changement de rôle');
       }
     } catch (error) {
-      console.error('❌ Erreur changement rôle:', error);
+      console.error('âŒ Erreur changement rôle:', error);
       alert(`Erreur lors du changement de rôle: ${error.message}`);
     } finally {
       setUserActionLoading(false);
@@ -602,14 +611,14 @@ const AdminDashboardNew = () => {
       const response = await userService.changeUserStatus(userId, newStatus);
       
       if (response.success) {
-        console.log('✅ Statut modifié');
+        console.log('âœ… Statut modifié');
         await loadUsers(); // Recharger la liste
         alert(response.message || 'Statut modifié avec succès');
       } else {
         throw new Error(response.error || 'Erreur lors du changement de statut');
       }
     } catch (error) {
-      console.error('❌ Erreur changement statut:', error);
+      console.error('âŒ Erreur changement statut:', error);
       alert(`Erreur lors du changement de statut: ${error.message}`);
     } finally {
       setUserActionLoading(false);
@@ -629,7 +638,7 @@ const AdminDashboardNew = () => {
       const response = await userService.inviteUser(inviteForm);
       
       if (response.success) {
-        console.log('✅ Invitation envoyée:', response.invitation);
+        console.log('âœ… Invitation envoyée:', response.invitation);
         setShowInviteUserModal(false);
         setInviteForm({ email: '', nom: '', role: 'collaborateur' });
         alert(response.message || 'Invitation envoyée avec succès');
@@ -637,7 +646,7 @@ const AdminDashboardNew = () => {
         throw new Error(response.error || 'Erreur lors de l\'invitation');
       }
     } catch (error) {
-      console.error('❌ Erreur invitation:', error);
+      console.error('âŒ Erreur invitation:', error);
       alert(`Erreur lors de l'invitation: ${error.message}`);
     } finally {
       setUserActionLoading(false);
@@ -646,7 +655,7 @@ const AdminDashboardNew = () => {
 
   // Fonction pour supprimer un utilisateur
   const handleDeleteUser = async (userId) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible.')) {
+    if (!window.confirm('ÃŠtes-vous sÃ»r de vouloir supprimer cet utilisateur ? Cette action est irréversible.')) {
       return;
     }
     
@@ -656,14 +665,14 @@ const AdminDashboardNew = () => {
       const response = await userService.deleteUser(userId);
       
       if (response.success) {
-        console.log('✅ Utilisateur supprimé');
+        console.log('âœ… Utilisateur supprimé');
         await loadUsers(); // Recharger la liste
         alert(response.message || 'Utilisateur supprimé avec succès');
       } else {
         throw new Error(response.error || 'Erreur lors de la suppression');
       }
     } catch (error) {
-      console.error('❌ Erreur suppression utilisateur:', error);
+      console.error('âŒ Erreur suppression utilisateur:', error);
       alert(`Erreur lors de la suppression: ${error.message}`);
     } finally {
       setUserActionLoading(false);
@@ -674,14 +683,14 @@ const AdminDashboardNew = () => {
   const loadRewards = async () => {
     try {
       setRecompenseLoading(true);
-      console.log('🔄 Chargement des récompenses...');
+      console.log('ðŸ”„ Chargement des récompenses...');
       
       // Utiliser le service dédié
       const response = await rewardService.getRewards();
       
       if (response.success) {
         const rewardsData = response.rewards || [];
-        console.log('🎁 Récompenses reçues:', rewardsData);
+        console.log('ðŸŽ Récompenses reÃ§ues:', rewardsData);
         
         // Transformer les données si nécessaire
         const transformedRewards = Array.isArray(rewardsData) ? rewardsData.map(reward => ({
@@ -704,7 +713,7 @@ const AdminDashboardNew = () => {
       }
       
     } catch (error) {
-      console.warn('⚠️ API récompenses non disponible, données factices utilisées');
+      console.warn('âš ï¸ API récompenses non disponible, données factices utilisées');
       // Utiliser des données factices si l'API n'est pas disponible
       const mockRewards = [
         {
@@ -713,7 +722,7 @@ const AdminDashboardNew = () => {
           description: 'Récompense pour avoir complété le plus de défis ce mois-ci',
           points: 500,
           category: 'Achievement',
-          image: '🏆',
+          image: 'ðŸ†',
           rarity: 'legendary',
           status: 'active',
           createdAt: new Date().toISOString(),
@@ -722,10 +731,10 @@ const AdminDashboardNew = () => {
         {
           id: '2',
           name: 'Éco-warrior',
-          description: 'Récompense pour la participation à 5 défis écologiques',
+          description: 'Récompense pour la participation Ã  5 défis écologiques',
           points: 250,
           category: 'Écologique',
-          image: '🌱',
+          image: 'ðŸŒ±',
           rarity: 'rare',
           status: 'active',
           createdAt: new Date().toISOString(),
@@ -737,7 +746,7 @@ const AdminDashboardNew = () => {
           description: 'Reconnaissance pour l\'excellent travail d\'équipe',
           points: 300,
           category: 'Teamwork',
-          image: '🤝',
+          image: 'ðŸ¤',
           rarity: 'epic',
           status: 'active',
           createdAt: new Date().toISOString(),
@@ -765,7 +774,7 @@ const AdminDashboardNew = () => {
           pointsDistribues: response.stats.pointsDistribues || 0
         });
       } else {
-        // Calculer les statistiques à partir des données locales
+        // Calculer les statistiques Ã  partir des données locales
         const activeRewards = recompenses.filter(r => r.status === 'active').length;
         const totalObtentions = recompenses.reduce((sum, r) => sum + (r.obtentions || 0), 0);
         const totalPoints = recompenses.reduce((sum, r) => sum + ((r.obtentions || 0) * (r.points || 0)), 0);
@@ -777,7 +786,7 @@ const AdminDashboardNew = () => {
         });
       }
     } catch (error) {
-      console.error('❌ Erreur chargement statistiques récompenses:', error);
+      console.error('âŒ Erreur chargement statistiques récompenses:', error);
       // Fallback sur le calcul local
       const activeRewards = recompenses.filter(r => r.status === 'active').length;
       const totalObtentions = recompenses.reduce((sum, r) => sum + (r.obtentions || 0), 0);
@@ -799,10 +808,51 @@ const AdminDashboardNew = () => {
     if (recompenseSearchTerm.trim()) {
       const searchLower = recompenseSearchTerm.toLowerCase().trim();
       filtered = filtered.filter(reward => 
-        reward.name?.toLowerCase().includes(searchLower) ||
-        reward.description?.toLowerCase().includes(searchLower) ||
-        reward.category?.toLowerCase().includes(searchLower)
+        (reward.nom || reward.name || '').toLowerCase().includes(searchLower) ||
+        (reward.description || '').toLowerCase().includes(searchLower) ||
+        (reward.category || '').toLowerCase().includes(searchLower)
       );
+    }
+    
+    // Filtrage par catégorie
+    if (categoryFilter && categoryFilter !== 'Toutes les catégories') {
+      filtered = filtered.filter(reward => 
+        reward.category === categoryFilter
+      );
+    }
+    
+    // Filtrage par statut
+    if (statusFilter && statusFilter !== 'Tous les statuts') {
+      const statusMap = {
+        'Disponible': 'active',
+        'Indisponible': 'inactive',
+        'En attente': 'pending'
+      };
+      filtered = filtered.filter(reward => 
+        reward.status === statusMap[statusFilter]
+      );
+    }
+    
+    // Tri
+    if (sortBy) {
+      switch (sortBy) {
+        case 'recent':
+          filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          break;
+        case 'points-asc':
+          filtered.sort((a, b) => (a.points || 0) - (b.points || 0));
+          break;
+        case 'points-desc':
+          filtered.sort((a, b) => (b.points || 0) - (a.points || 0));
+          break;
+        case 'name':
+          filtered.sort((a, b) => 
+            (a.nom || a.name || '').localeCompare(b.nom || b.name || '')
+          );
+          break;
+        default:
+          break;
+      }
     }
     
     setFilteredRecompenses(filtered);
@@ -827,7 +877,7 @@ const AdminDashboardNew = () => {
       const response = await rewardService.createReward(newReward);
       
       if (response.success) {
-        console.log('✅ Récompense créée:', response.reward);
+        console.log('âœ… Récompense créée:', response.reward);
         await loadRewards(); // Recharger la liste
         alert(response.message || 'Récompense créée avec succès');
       } else {
@@ -846,17 +896,17 @@ const AdminDashboardNew = () => {
       });
       setShowCreateRewardModal(false);
       
-      console.log('✅ Récompense créée avec succès');
+      console.log('âœ… Récompense créée avec succès');
       
     } catch (error) {
-      console.error('❌ Erreur création récompense:', error);
+      console.error('âŒ Erreur création récompense:', error);
       alert('Erreur lors de la création de la récompense');
     }
   };
 
   // Fonction pour supprimer une récompense
   const handleDeleteReward = async (rewardId) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette récompense ?')) {
+    if (!window.confirm('ÃŠtes-vous sÃ»r de vouloir supprimer cette récompense ?')) {
       return;
     }
     
@@ -865,15 +915,137 @@ const AdminDashboardNew = () => {
       const response = await rewardService.deleteReward(rewardId);
       
       if (response.success) {
-        console.log('✅ Récompense supprimée');
+        console.log('âœ… Récompense supprimée');
         await loadRewards(); // Recharger la liste
         alert(response.message || 'Récompense supprimée avec succès');
       } else {
         throw new Error(response.error || 'Erreur lors de la suppression');
       }
     } catch (error) {
-      console.error('❌ Erreur suppression récompense:', error);
+      console.error('âŒ Erreur suppression récompense:', error);
       alert(`Erreur lors de la suppression: ${error.message}`);
+    }
+  };
+
+  // Fonction pour éditer une récompense
+  const handleEditReward = (reward) => {
+    setRewardForm({
+      name: reward.nom || reward.name || '',
+      description: reward.description || '',
+      points: reward.points || '',
+      category: reward.category || '',
+      stock: reward.stock || '',
+      image: reward.image || '',
+      rarity: reward.rarity || 'common',
+      status: reward.status || 'active'
+    });
+    setEditingReward(reward);
+    setShowCreateRewardModal(true);
+  };
+
+  // Fonction pour sauvegarder les modifications d'une récompense
+  const handleSaveReward = async () => {
+    try {
+      let response;
+      
+      if (editingReward) {
+        // Modification d'une récompense existante
+        response = await rewardService.updateReward(editingReward._id || editingReward.id, rewardForm);
+      } else {
+        // Création d'une nouvelle récompense
+        response = await rewardService.createReward(rewardForm);
+      }
+      
+      if (response.success) {
+        console.log(editingReward ? '✅ Récompense modifiée' : '✅ Récompense créée');
+        await loadRewards(); // Recharger la liste
+        setShowCreateRewardModal(false);
+        setEditingReward(null);
+        setRewardForm({
+          name: '',
+          description: '',
+          points: '',
+          category: '',
+          stock: '',
+          image: '',
+          rarity: 'common',
+          status: 'active'
+        });
+        alert(response.message || (editingReward ? 'Récompense modifiée avec succès' : 'Récompense créée avec succès'));
+      } else {
+        throw new Error(response.error || 'Erreur lors de la sauvegarde');
+      }
+    } catch (error) {
+      console.error('❌ Erreur sauvegarde récompense:', error);
+      alert(`Erreur lors de la sauvegarde: ${error.message}`);
+    }
+  };
+
+  // Fonctions pour les demandes d'échange de récompenses
+  const loadRewardClaims = async () => {
+    try {
+      setClaimsLoading(true);
+      const response = await api.get('/rewards/admin/claims');
+      setRewardClaims(response.data.claims || []);
+    } catch (error) {
+      console.error('Erreur récupération demandes échange:', error);
+      setRewardClaims([]);
+    } finally {
+      setClaimsLoading(false);
+    }
+  };
+
+  const handleApproveClaim = async (claimId) => {
+    try {
+      setActionLoading(true);
+      const response = await api.put(`/rewards/admin/claims/${claimId}`, {
+        status: 'approved',
+        adminNotes: 'Demande approuvée par l\'administrateur'
+      });
+      
+      alert(response.data.message);
+      await loadRewardClaims(); // Recharger la liste
+    } catch (error) {
+      console.error('Erreur approbation demande:', error);
+      alert(error.response?.data?.message || 'Erreur lors de l\'approbation');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRejectClaim = async (claimId) => {
+    try {
+      setActionLoading(true);
+      const response = await api.put(`/rewards/admin/claims/${claimId}`, {
+        status: 'rejected',
+        adminNotes: 'Demande rejetée par l\'administrateur'
+      });
+      
+      alert(response.data.message);
+      await loadRewardClaims(); // Recharger la liste
+    } catch (error) {
+      console.error('Erreur rejet demande:', error);
+      alert(error.response?.data?.message || 'Erreur lors du rejet');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleMarkAsDelivered = async (claimId) => {
+    try {
+      setActionLoading(true);
+      const response = await api.put(`/rewards/admin/claims/${claimId}`, {
+        status: 'delivered',
+        adminNotes: 'Récompense marquée comme livrée'
+      });
+      
+      alert(response.data.message);
+      await loadRewardClaims(); // Recharger la liste
+    } catch (error) {
+      console.error('Erreur marquage livraison:', error);
+      alert(error.response?.data?.message || 'Erreur lors du marquage');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -899,7 +1071,8 @@ const AdminDashboardNew = () => {
         loadStats(),
         loadUsers(),
         loadGroups(),
-        loadRewards()
+        loadRewards(),
+        loadRewardClaims()
       ]);
       setLoading(false);
     };
@@ -913,6 +1086,7 @@ const AdminDashboardNew = () => {
       loadPendingProofs();
     } else if (activeTab === 'recompenses') {
       loadRewards();
+      loadRewardClaims();
     }
   }, [activeTab]);
 
@@ -931,7 +1105,7 @@ const AdminDashboardNew = () => {
     applyUserFilters();
   }, [utilisateurs, userSearchTerm, userRoleFilter, userStatusFilter]);
 
-  // Mettre à jour les statistiques des récompenses
+  // Mettre Ã  jour les statistiques des récompenses
   useEffect(() => {
     if (recompenses.length > 0) {
       loadRewardStats();
@@ -966,11 +1140,11 @@ const AdminDashboardNew = () => {
   const loadGroups = async () => {
     try {
       setGroupLoading(true);
-      console.log('🔄 Chargement des groupes...');
+      console.log('ðŸ”„ Chargement des groupes...');
       const response = await api.get('/groups');
       const groupsData = response.data || response;
       
-      console.log('👥 Groupes reçus:', groupsData);
+      console.log('ðŸ‘¥ Groupes reÃ§us:', groupsData);
       
       // Transformer les données pour correspondre au format attendu par l'interface
       const transformedGroups = groupsData.map(group => ({
@@ -991,10 +1165,10 @@ const AdminDashboardNew = () => {
       
       setGroupes(transformedGroups);
       setFilteredGroupes(transformedGroups);
-      console.log('✅ Groupes chargés:', transformedGroups.length);
+      console.log('âœ… Groupes chargés:', transformedGroups.length);
       
     } catch (error) {
-      console.error('❌ Erreur chargement groupes:', error);
+      console.error('âŒ Erreur chargement groupes:', error);
       setGroupes([]);
       setFilteredGroupes([]);
     } finally {
@@ -1034,11 +1208,16 @@ const AdminDashboardNew = () => {
     filterGroups();
   }, [groupSearchTerm, groupChallengeFilter, groupes]);
 
+  // Effect pour le filtrage des récompenses
+  useEffect(() => {
+    applyRewardFilters();
+  }, [recompenseSearchTerm, categoryFilter, statusFilter, sortBy, recompenses]);
+
   // Fonctions de gestion des actions groupes
   const handleViewGroupDetails = async (group) => {
     try {
       setGroupActionLoading(true);
-      console.log('📖 Chargement détails groupe:', group.name);
+      console.log('ðŸ“– Chargement détails groupe:', group.name);
       
       // Récupérer les détails complets du groupe
       const response = await api.get(`/groups/${group.id}`);
@@ -1052,7 +1231,7 @@ const AdminDashboardNew = () => {
       setShowGroupDetailsModal(true);
       
     } catch (error) {
-      console.error('❌ Erreur chargement détails groupe:', error);
+      console.error('âŒ Erreur chargement détails groupe:', error);
       alert('Erreur lors du chargement des détails du groupe');
     } finally {
       setGroupActionLoading(false);
@@ -1075,7 +1254,7 @@ const AdminDashboardNew = () => {
       setSelectedGroup(group);
       
       // Charger les utilisateurs disponibles (qui ne sont pas encore dans le groupe)
-      console.log('🔍 Debugging utilisateurs disponibles...');
+      console.log('ðŸ” Debugging utilisateurs disponibles...');
       console.log('Utilisateurs bruts:', utilisateurs.slice(0, 2)); // Afficher 2 premiers pour debug
       
       const currentMemberIds = group.members?.map(m => m._id || m.id) || [];
@@ -1095,7 +1274,7 @@ const AdminDashboardNew = () => {
       setShowManageMembersModal(true);
       
     } catch (error) {
-      console.error('❌ Erreur chargement utilisateurs:', error);
+      console.error('âŒ Erreur chargement utilisateurs:', error);
     } finally {
       setGroupActionLoading(false);
     }
@@ -1111,12 +1290,12 @@ const AdminDashboardNew = () => {
     
     try {
       setGroupActionLoading(true);
-      console.log('🗑️ Suppression groupe:', selectedGroup.name);
+      console.log('ðŸ—‘ï¸ Suppression groupe:', selectedGroup.name);
       
       // Appel API pour supprimer le groupe
       await api.delete(`/groups/${selectedGroup.id}`);
       
-      // Mettre à jour la liste locale
+      // Mettre Ã  jour la liste locale
       const updatedGroups = groupes.filter(g => g.id !== selectedGroup.id);
       setGroupes(updatedGroups);
       setFilteredGroupes(updatedGroups);
@@ -1124,11 +1303,11 @@ const AdminDashboardNew = () => {
       setShowDeleteGroupModal(false);
       setSelectedGroup(null);
       
-      console.log('✅ Groupe supprimé avec succès');
+      console.log('âœ… Groupe supprimé avec succès');
       alert('Groupe supprimé avec succès !');
       
     } catch (error) {
-      console.error('❌ Erreur suppression groupe:', error);
+      console.error('âŒ Erreur suppression groupe:', error);
       alert('Erreur lors de la suppression du groupe');
     } finally {
       setGroupActionLoading(false);
@@ -1143,7 +1322,7 @@ const AdminDashboardNew = () => {
     
     try {
       setGroupActionLoading(true);
-      console.log('💾 Sauvegarde modifications groupe:', selectedGroup.name);
+      console.log('ðŸ’¾ Sauvegarde modifications groupe:', selectedGroup.name);
       
       const updateData = {
         name: editForm.name.trim(),
@@ -1151,11 +1330,11 @@ const AdminDashboardNew = () => {
         status: editForm.status
       };
       
-      // Appel API pour mettre à jour le groupe
+      // Appel API pour mettre Ã  jour le groupe
       const response = await api.put(`/groups/${selectedGroup.id}`, updateData);
       const updatedGroup = response.data || response;
       
-      // Mettre à jour la liste locale
+      // Mettre Ã  jour la liste locale
       const updatedGroups = groupes.map(g => 
         g.id === selectedGroup.id 
           ? { ...g, ...updateData }
@@ -1164,12 +1343,12 @@ const AdminDashboardNew = () => {
       setGroupes(updatedGroups);
       setFilteredGroupes(updatedGroups);
       
-      console.log('✅ Groupe modifié avec succès');
+      console.log('âœ… Groupe modifié avec succès');
       alert('Groupe modifié avec succès !');
       closeGroupModals();
       
     } catch (error) {
-      console.error('❌ Erreur modification groupe:', error);
+      console.error('âŒ Erreur modification groupe:', error);
       alert('Erreur lors de la modification du groupe');
     } finally {
       setGroupActionLoading(false);
@@ -1178,13 +1357,13 @@ const AdminDashboardNew = () => {
 
   const addMembersToGroup = async () => {
     if (!selectedGroup || selectedUsersToAdd.length === 0) {
-      alert('Veuillez sélectionner au moins un membre à ajouter');
+      alert('Veuillez sélectionner au moins un membre Ã  ajouter');
       return;
     }
     
     try {
       setGroupActionLoading(true);
-      console.log(`👥 Ajout de ${selectedUsersToAdd.length} membres au groupe:`, selectedGroup.name);
+      console.log(`ðŸ‘¥ Ajout de ${selectedUsersToAdd.length} membres au groupe:`, selectedGroup.name);
       console.log('IDs sélectionnés:', selectedUsersToAdd);
       console.log('ID du groupe:', selectedGroup.id);
       
@@ -1196,19 +1375,19 @@ const AdminDashboardNew = () => {
           console.log('Réponse pour', userId, ':', response.data);
         } catch (memberError) {
           console.error('Erreur pour membre', userId, ':', memberError.response?.data || memberError.message);
-          throw memberError; // Relancer l'erreur pour arrêter la boucle
+          throw memberError; // Relancer l'erreur pour arrÃªter la boucle
         }
       }
       
-      // Recharger les groupes pour avoir les données à jour
+      // Recharger les groupes pour avoir les données Ã  jour
       await loadGroups();
       
-      console.log('✅ Membres ajoutés avec succès');
+      console.log('âœ… Membres ajoutés avec succès');
       alert(`${selectedUsersToAdd.length} membre(s) ajouté(s) avec succès !`);
       closeGroupModals();
       
     } catch (error) {
-      console.error('❌ Erreur ajout membres:', error);
+      console.error('âŒ Erreur ajout membres:', error);
       const errorMsg = error.response?.data?.msg || error.message || 'Erreur inconnue';
       alert(`Erreur lors de l'ajout des membres: ${errorMsg}`);
     } finally {
@@ -1221,18 +1400,18 @@ const AdminDashboardNew = () => {
     
     try {
       setGroupActionLoading(true);
-      console.log('🗑️ Suppression membre du groupe:', memberId);
+      console.log('ðŸ—‘ï¸ Suppression membre du groupe:', memberId);
       
       await api.delete(`/groups/${selectedGroup.id}/members/${memberId}`);
       
-      // Recharger les groupes pour avoir les données à jour
+      // Recharger les groupes pour avoir les données Ã  jour
       await loadGroups();
       
-      console.log('✅ Membre supprimé avec succès');
+      console.log('âœ… Membre supprimé avec succès');
       alert('Membre supprimé du groupe avec succès !');
       
     } catch (error) {
-      console.error('❌ Erreur suppression membre:', error);
+      console.error('âŒ Erreur suppression membre:', error);
       alert('Erreur lors de la suppression du membre');
     } finally {
       setGroupActionLoading(false);
@@ -1265,7 +1444,7 @@ const AdminDashboardNew = () => {
     
     try {
       setGroupActionLoading(true);
-      console.log('📝 Création du groupe:', createGroupForm);
+      console.log('ðŸ“ Création du groupe:', createGroupForm);
       
       const response = await api.post('/groups', {
         name: createGroupForm.name.trim(),
@@ -1273,7 +1452,7 @@ const AdminDashboardNew = () => {
         challengeId: createGroupForm.challengeId
       });
       
-      console.log('✅ Groupe créé avec succès:', response.data);
+      console.log('âœ… Groupe créé avec succès:', response.data);
       alert('Groupe créé avec succès !');
       
       // Recharger les groupes
@@ -1281,7 +1460,7 @@ const AdminDashboardNew = () => {
       closeGroupModals();
       
     } catch (error) {
-      console.error('❌ Erreur création groupe:', error);
+      console.error('âŒ Erreur création groupe:', error);
       const errorMsg = error.response?.data?.msg || error.message || 'Erreur inconnue';
       alert(`Erreur lors de la création du groupe: ${errorMsg}`);
     } finally {
@@ -1299,7 +1478,7 @@ const AdminDashboardNew = () => {
     try {
       setActionLoading(true);
       await proofService.approveProof(proofId, comment);
-      console.log('✅ Preuve approuvée');
+      console.log('âœ… Preuve approuvée');
       
       // Recharger les preuves
       await loadPendingProofs();
@@ -1307,7 +1486,7 @@ const AdminDashboardNew = () => {
       setSelectedProof(null);
       
     } catch (error) {
-      console.error('❌ Erreur approbation:', error);
+      console.error('âŒ Erreur approbation:', error);
       alert('Erreur lors de l\'approbation: ' + (error.response?.data?.msg || error.message));
     } finally {
       setActionLoading(false);
@@ -1318,7 +1497,7 @@ const AdminDashboardNew = () => {
     try {
       setActionLoading(true);
       await proofService.rejectProof(proofId, comment);
-      console.log('❌ Preuve rejetée');
+      console.log('âŒ Preuve rejetée');
       
       // Recharger les preuves
       await loadPendingProofs();
@@ -1326,7 +1505,7 @@ const AdminDashboardNew = () => {
       setSelectedProof(null);
       
     } catch (error) {
-      console.error('❌ Erreur rejet:', error);
+      console.error('âŒ Erreur rejet:', error);
       alert('Erreur lors du rejet: ' + (error.response?.data?.msg || error.message));
     } finally {
       setActionLoading(false);
@@ -1352,7 +1531,7 @@ const AdminDashboardNew = () => {
 
   // Fonction pour sauvegarder un nouveau défi
   const handleSaveChallenge = async (newChallenge) => {
-    console.log('✅ Nouveau défi créé:', newChallenge);
+    console.log('âœ… Nouveau défi créé:', newChallenge);
     // Recharger les défis et statistiques
     await loadChallenges();
     await loadStats();
@@ -1816,9 +1995,9 @@ const AdminDashboardNew = () => {
                             </div>
                             <div className="flex items-center gap-4 text-sm text-gray-500">
                               <span>Type: {preuve.type === 'text' ? 'Texte' : preuve.type === 'image' ? 'Image' : preuve.type === 'video' ? 'Vidéo' : 'Fichier'}</span>
-                              <span>•</span>
+                              <span>â€¢</span>
                               <span>Soumis le {formatDate(preuve.submittedAt)}</span>
-                              <span>•</span>
+                              <span>â€¢</span>
                               <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
                                 {preuve.challenge?.category}
                               </span>
@@ -2112,7 +2291,7 @@ const AdminDashboardNew = () => {
                     </h3>
                     <p className="text-gray-600 mb-6">
                       {groupes.length === 0 
-                        ? "Créez votre premier groupe pour commencer à organiser vos collaborateurs"
+                        ? "Créez votre premier groupe pour commencer Ã  organiser vos collaborateurs"
                         : "Essayez de modifier vos critères de recherche"
                       }
                     </p>
@@ -2393,11 +2572,11 @@ const AdminDashboardNew = () => {
                 
                 <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
                   <p className="text-red-800 text-sm">
-                    Êtes-vous sûr de vouloir supprimer le groupe <strong>"{selectedGroup.name}"</strong> ?
+                    ÃŠtes-vous sÃ»r de vouloir supprimer le groupe <strong>"{selectedGroup.name}"</strong> ?
                   </p>
                   <p className="text-red-600 text-xs mt-2">
-                    • {selectedGroup.stats?.totalMembers || 0} membres seront affectés<br/>
-                    • Toutes les données du groupe seront perdues
+                    â€¢ {selectedGroup.stats?.totalMembers || 0} membres seront affectés<br/>
+                    â€¢ Toutes les données du groupe seront perdues
                   </p>
                 </div>
 
@@ -2633,7 +2812,7 @@ const AdminDashboardNew = () => {
                                 type="checkbox"
                                 checked={selectedUsersToAdd.includes(userId)}
                                 onChange={(e) => {
-                                  console.log('🔄 Checkbox change:', { userId, checked: e.target.checked, userObject: user });
+                                  console.log('ðŸ”„ Checkbox change:', { userId, checked: e.target.checked, userObject: user });
                                   if (e.target.checked) {
                                     setSelectedUsersToAdd([...selectedUsersToAdd, userId]);
                                   } else {
@@ -2650,7 +2829,7 @@ const AdminDashboardNew = () => {
                       {availableUsers.length === 0 && (
                         <div className="text-center py-8 text-gray-500">
                           <UserCheck className="mx-auto w-12 h-12 text-gray-300 mb-2" />
-                          <p>Tous les utilisateurs sont déjà membres</p>
+                          <p>Tous les utilisateurs sont déjÃ  membres</p>
                         </div>
                       )}
                     </div>
@@ -2735,6 +2914,100 @@ const AdminDashboardNew = () => {
               </div>
             </div>
 
+            {/* Demandes d'échange de récompenses */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+              <div className="p-6 border-b border-gray-100">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Demandes d'échange ({rewardClaims.filter(claim => claim.status === 'pending').length} en attente)
+                </h3>
+              </div>
+
+              <div className="p-6">
+                {claimsLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mx-auto"></div>
+                    <p className="mt-2 text-sm text-gray-500">Chargement des demandes...</p>
+                  </div>
+                ) : rewardClaims.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <ShoppingCart className="mx-auto w-12 h-12 text-gray-300 mb-3" />
+                    <p>Aucune demande d'échange</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {rewardClaims.slice(0, 5).map((claim) => (
+                      <div key={claim._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                            <Gift className="w-6 h-6 text-white" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-800">{claim.rewardItem?.title}</h4>
+                            <p className="text-sm text-gray-600">
+                              {claim.user?.firstName} {claim.user?.lastName} (@{claim.user?.username})
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {claim.pointsSpent} points • {new Date(claim.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            claim.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            claim.status === 'approved' ? 'bg-green-100 text-green-800' :
+                            claim.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                            'bg-blue-100 text-blue-800'
+                          }`}>
+                            {claim.status === 'pending' ? 'En attente' :
+                             claim.status === 'approved' ? 'Approuvé' :
+                             claim.status === 'rejected' ? 'Rejeté' : 'Livré'}
+                          </span>
+                          
+                          {claim.status === 'pending' && (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleApproveClaim(claim._id)}
+                                disabled={actionLoading}
+                                className="px-3 py-1 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                              >
+                                âœ“
+                              </button>
+                              <button
+                                onClick={() => handleRejectClaim(claim._id)}
+                                disabled={actionLoading}
+                                className="px-3 py-1 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                              >
+                                âœ•
+                              </button>
+                            </div>
+                          )}
+                          
+                          {claim.status === 'approved' && (
+                            <button
+                              onClick={() => handleMarkAsDelivered(claim._id)}
+                              disabled={actionLoading}
+                              className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                            >
+                              Livré
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {rewardClaims.length > 5 && (
+                      <div className="text-center pt-4">
+                        <button className="text-sm text-purple-600 hover:text-purple-700 font-medium">
+                          Voir toutes les demandes ({rewardClaims.length})
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Liste des récompenses */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
               <div className="p-6 border-b border-gray-100">
@@ -2753,6 +3026,43 @@ const AdminDashboardNew = () => {
                         className="pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       />
                     </div>
+                    
+                    {/* Filtres */}
+                    <select
+                      value={categoryFilter}
+                      onChange={(e) => setCategoryFilter(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                    >
+                      <option value="Toutes les catégories">Toutes les catégories</option>
+                      <option value="shopping">Shopping</option>
+                      <option value="alimentaire">Alimentaire</option>
+                      <option value="loisirs">Loisirs</option>
+                      <option value="voyage">Voyage</option>
+                      <option value="ecologique">Écologique</option>
+                      <option value="local">Local</option>
+                    </select>
+                    
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                    >
+                      <option value="Tous les statuts">Tous les statuts</option>
+                      <option value="Disponible">Disponible</option>
+                      <option value="Indisponible">Indisponible</option>
+                      <option value="En attente">En attente</option>
+                    </select>
+                    
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                    >
+                      <option value="recent">Plus récent</option>
+                      <option value="name">Nom A-Z</option>
+                      <option value="points-asc">Points croissant</option>
+                      <option value="points-desc">Points décroissant</option>
+                    </select>
                   </div>
                 </div>
               </div>
@@ -2782,55 +3092,63 @@ const AdminDashboardNew = () => {
                     )}
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {filteredRecompenses.map((reward) => (
-                      <div key={reward.id} className="p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start gap-4">
-                            <div className="text-3xl">{reward.image || '🎁'}</div>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <h4 className="text-lg font-semibold text-gray-800">{reward.name}</h4>
-                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                  reward.rarity === 'legendary' ? 'bg-yellow-100 text-yellow-800' :
-                                  reward.rarity === 'epic' ? 'bg-purple-100 text-purple-800' :
-                                  reward.rarity === 'rare' ? 'bg-blue-100 text-blue-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {reward.rarity}
-                                </span>
-                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                  reward.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                }`}>
-                                  {reward.status === 'active' ? 'Actif' : 'Inactif'}
-                                </span>
-                              </div>
-                              <p className="text-gray-600 mb-2">{reward.description}</p>
-                              <div className="flex items-center gap-4 text-sm text-gray-500">
-                                <span className="flex items-center gap-1">
-                                  <Award className="w-4 h-4" />
-                                  {reward.points} points
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Target className="w-4 h-4" />
-                                  {reward.category}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Users className="w-4 h-4" />
-                                  {reward.obtentions || 0} obtenues
-                                </span>
-                              </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredRecompenses.map((recompense) => (
+                      <div key={recompense._id || recompense.id} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                              <Gift className="w-6 h-6 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-gray-800">{recompense.nom || recompense.name || recompense.title}</h3>
+                              <p className="text-sm text-gray-600">{recompense.points} points</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <button 
-                              onClick={() => handleDeleteReward(reward.id)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            <button
+                              className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                              title="Modifier"
+                              onClick={() => handleEditReward(recompense)}
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button
+                              className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
                               title="Supprimer"
+                              onClick={() => handleDeleteReward(recompense._id || recompense.id)}
                             >
                               <Trash2 size={16} />
                             </button>
                           </div>
+                        </div>
+                        <p className="text-gray-600 text-sm mb-3">{recompense.description}</p>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-500">Stock: {recompense.stock || 'Illimité'}</span>
+                          <span className={`font-medium ${
+                            recompense.status === 'active' ? 'text-green-600' : 
+                            recompense.status === 'inactive' ? 'text-red-600' : 'text-gray-600'
+                          }`}>
+                            {recompense.status === 'active' ? 'Disponible' : 
+                             recompense.status === 'inactive' ? 'Indisponible' : 'En attente'}
+                          </span>
+                        </div>
+                        {recompense.image && (
+                          <div className="mt-3">
+                            <img 
+                              src={recompense.image} 
+                              alt={recompense.nom || recompense.name} 
+                              className="w-full h-32 object-cover rounded-lg"
+                            />
+                          </div>
+                        )}
+                        <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
+                          <span>Catégorie: {recompense.category || 'Non définie'}</span>
+                          <span>Rareté: {
+                            recompense.rarity === 'common' ? 'Commune' :
+                            recompense.rarity === 'rare' ? 'Rare' :
+                            recompense.rarity === 'epic' ? 'Épique' : 'Légendaire'
+                          }</span>
                         </div>
                       </div>
                     ))}
@@ -2840,228 +3158,41 @@ const AdminDashboardNew = () => {
             </div>
           </div>
         )}
-
       </div>
-
-      {/* Modal de création de groupe */}
-      {showCreateGroupModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full">
-            <div className="p-6 border-b border-gray-100">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-800">Créer un nouveau groupe</h2>
-                <button
-                  onClick={closeGroupModals}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nom du groupe
-                </label>
-                <input
-                  type="text"
-                  value={createGroupForm.name}
-                  onChange={(e) => setCreateGroupForm({...createGroupForm, name: e.target.value})}
-                  placeholder="Ex: Équipe Alpha"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description
-                </label>
-                <textarea
-                  value={createGroupForm.description}
-                  onChange={(e) => setCreateGroupForm({...createGroupForm, description: e.target.value})}
-                  placeholder="Description du groupe..."
-                  rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Défi associé
-                </label>
-                <select
-                  value={createGroupForm.challengeId}
-                  onChange={(e) => setCreateGroupForm({...createGroupForm, challengeId: e.target.value})}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  <option value="">Sélectionner un défi</option>
-                  {defis.map((defi) => (
-                    <option key={defi._id} value={defi._id}>
-                      {defi.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-gray-100 flex gap-3">
-              <button
-                onClick={closeGroupModals}
-                disabled={groupActionLoading}
-                className="flex-1 px-4 py-3 text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-50"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={createNewGroup}
-                disabled={groupActionLoading}
-                className="flex-1 px-4 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 disabled:opacity-50"
-              >
-                {groupActionLoading ? 'Création...' : 'Créer le groupe'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal de création de défi */}
       <CreateChallengeModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onSave={handleSaveChallenge}
+        onSave={(newChallenge) => {
+          // Actualiser la liste des défis après création
+          loadChallenges();
+          setShowCreateModal(false);
+        }}
       />
 
-      {/* Modal de détail des preuves */}
-      {showProofModal && selectedProof && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-800">Détail de la preuve</h2>
-                <button
-                  onClick={() => setShowProofModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-6">
-              {/* Informations générales */}
-              <div>
-                <h3 className="font-semibold text-gray-800 mb-3">Informations générales</h3>
-                <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Défi :</span>
-                    <span className="font-medium">{selectedProof.challenge?.title}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Utilisateur :</span>
-                    <span className="font-medium">
-                      {selectedProof.user?.firstName} {selectedProof.user?.lastName} (@{selectedProof.user?.username})
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Type :</span>
-                    <span className="font-medium">
-                      {selectedProof.type === 'text' ? 'Texte' : 
-                       selectedProof.type === 'image' ? 'Image' : 
-                       selectedProof.type === 'video' ? 'Vidéo' : 'Fichier'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Soumis le :</span>
-                    <span className="font-medium">{formatDate(selectedProof.submittedAt)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Description */}
-              <div>
-                <h3 className="font-semibold text-gray-800 mb-3">Description</h3>
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-gray-700">{selectedProof.description}</p>
-                </div>
-              </div>
-
-              {/* Contenu de la preuve */}
-              <div>
-                <h3 className="font-semibold text-gray-800 mb-3">Contenu</h3>
-                <div className="bg-gray-50 rounded-xl p-4">
-                  {selectedProof.type === 'text' ? (
-                    <div className="text-gray-700">{selectedProof.content}</div>
-                  ) : selectedProof.type === 'image' ? (
-                    <img 
-                      src={getFileUrl(selectedProof.content)} 
-                      alt="Preuve" 
-                      className="max-w-full h-auto rounded-lg"
-                    />
-                  ) : selectedProof.type === 'video' ? (
-                    <video 
-                      src={getFileUrl(selectedProof.content)} 
-                      controls 
-                      className="max-w-full h-auto rounded-lg"
-                    />
-                  ) : (
-                    <div className="flex items-center gap-3 p-4 bg-white rounded-lg border border-gray-200">
-                      <FileText className="w-8 h-8 text-blue-500" />
-                      <div>
-                        <p className="font-medium text-gray-800">{selectedProof.fileName}</p>
-                        <p className="text-sm text-gray-600">
-                          {selectedProof.fileSize ? `${(selectedProof.fileSize / 1024 / 1024).toFixed(2)} MB` : 'Taille inconnue'}
-                        </p>
-                      </div>
-                      <a 
-                        href={getFileUrl(selectedProof.content)} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="ml-auto px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors"
-                      >
-                        Télécharger
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center gap-4 pt-4 border-t border-gray-100">
-                <button
-                  onClick={() => handleApproveProof(selectedProof._id, 'Preuve validée par l\'administrateur')}
-                  disabled={actionLoading}
-                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
-                >
-                  {actionLoading ? 'Validation...' : 'Valider'}
-                </button>
-                <button
-                  onClick={() => handleRejectProof(selectedProof._id, 'Preuve rejetée par l\'administrateur')}
-                  disabled={actionLoading}
-                  className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-                >
-                  {actionLoading ? 'Rejet...' : 'Rejeter'}
-                </button>
-               
-                <button
-                  onClick={() => setShowProofModal(false)}
-                  className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                >
-                  Fermer
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de création de récompense */}
-      <CreateRewardModal 
+      {/* Modal de création/édition de récompense */}
+      <CreateRewardModal
         isOpen={showCreateRewardModal}
-        onClose={() => setShowCreateRewardModal(false)}
+        onClose={() => {
+          setShowCreateRewardModal(false);
+          setEditingReward(null);
+          setRewardForm({
+            name: '',
+            description: '',
+            points: '',
+            category: '',
+            stock: '',
+            image: '',
+            rarity: 'common',
+            status: 'active'
+          });
+        }}
+        onSave={handleSaveReward}
         rewardForm={rewardForm}
         setRewardForm={setRewardForm}
-        onSubmit={handleCreateReward}
+        editingReward={editingReward}
+        loading={false}
       />
     </div>
   );
